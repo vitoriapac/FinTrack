@@ -5,7 +5,7 @@ function attachViewHandlers(){
 
   main.querySelectorAll('[data-action="go-lancamentos"]').forEach(b => b.onclick = () => setView('lancamentos'));
   const btnHomeNovo = document.getElementById('btn-home-novo');
-  if(btnHomeNovo) btnHomeNovo.onclick = () => FinTrackFormLayer.open('lancamento',null);
+  if(btnHomeNovo) btnHomeNovo.onclick = () => FinTrackForms.open('lancamento',null);
   const demoRestore=document.getElementById('btn-demo-restaurar');
   if(demoRestore) demoRestore.onclick=restaurarDadosAnteriores;
   const btnMostrarLanc = document.getElementById('btn-mostrar-lancamentos');
@@ -13,23 +13,23 @@ function attachViewHandlers(){
 
   // Lançamentos
   const btnNovo = document.getElementById('btn-novo-lancamento');
-  if(btnNovo) btnNovo.onclick = () => FinTrackFormLayer.open('lancamento',null);
+  if(btnNovo) btnNovo.onclick = () => FinTrackForms.open('lancamento',null);
   const btnTransferencia = document.getElementById('btn-nova-transferencia');
-  if(btnTransferencia) btnTransferencia.onclick = () => FinTrackFormLayer.open('transferencia');
+  if(btnTransferencia) btnTransferencia.onclick = () => FinTrackForms.open('transferencia');
   const btnInvestimento = document.getElementById('btn-novo-investimento');
-  if(btnInvestimento) btnInvestimento.onclick = () => FinTrackFormLayer.open('investimento');
+  if(btnInvestimento) btnInvestimento.onclick = () => FinTrackForms.open('investimento');
 
   main.querySelectorAll('[data-action="edit-lanc"]').forEach(b => b.onclick = () => {
     let lanc = state.lancamentos.find(l => l.id === b.dataset.id);
     if(impedirAlteracaoMes(lanc?.data)) return;
     if(lanc?.tipoOperacao==='transferencia'){
       lanc=state.lancamentos.find(l=>l.operacaoId===lanc.operacaoId && l.movimentoTransferencia==='saida') || lanc;
-      FinTrackFormLayer.open('transferencia',lanc);
+      FinTrackForms.open('transferencia',lanc);
       return;
     }
     const serie=state.lancamentos.filter(x=>x.serieId && x.serieId===lanc?.serieId);
     if(serie.length>1) lanc={...lanc,_editarSerie:confirm('Este lançamento faz parte de uma série. OK edita toda a série; Cancelar edita somente este item.')};
-    FinTrackFormLayer.open('lancamento',lanc);
+    FinTrackForms.open('lancamento',lanc);
   });
   main.querySelectorAll('[data-action="del-lanc"]').forEach(b => b.onclick = () => {
     const lanc=state.lancamentos.find(l=>l.id===b.dataset.id);
@@ -71,8 +71,8 @@ function attachViewHandlers(){
   FinTrackFilters.bind(main);
 
   const btnNovaCat = document.getElementById('btn-nova-categoria');
-  if(btnNovaCat) btnNovaCat.onclick = () => FinTrackFormLayer.open('categoria',null);
-  main.querySelectorAll('[data-action="edit-cat"]').forEach(b => b.onclick = () => FinTrackFormLayer.open('categoria',catById(b.dataset.id)));
+  if(btnNovaCat) btnNovaCat.onclick = () => FinTrackForms.open('categoria',null);
+  main.querySelectorAll('[data-action="edit-cat"]').forEach(b => b.onclick = () => FinTrackForms.open('categoria',catById(b.dataset.id)));
   main.querySelectorAll('[data-action="del-cat"]').forEach(b => b.onclick = () => {
     const emUso = lancamentosEmUso('categoria', b.dataset.id);
     if(emUso > 0){
@@ -87,8 +87,8 @@ function attachViewHandlers(){
   });
 
   const btnNovaConta = document.getElementById('btn-nova-conta');
-  if(btnNovaConta) btnNovaConta.onclick = () => FinTrackFormLayer.open('conta',null);
-  main.querySelectorAll('[data-action="edit-conta"]').forEach(b => b.onclick = () => FinTrackFormLayer.open('conta',contaById(b.dataset.id)));
+  if(btnNovaConta) btnNovaConta.onclick = () => FinTrackForms.open('conta',null);
+  main.querySelectorAll('[data-action="edit-conta"]').forEach(b => b.onclick = () => FinTrackForms.open('conta',contaById(b.dataset.id)));
   main.querySelectorAll('[data-action="del-conta"]').forEach(b => b.onclick = () => {
     const emUso = lancamentosEmUso('conta', b.dataset.id);
     if(emUso > 0){
@@ -122,5 +122,5 @@ function attachViewHandlers(){
   const salvarPlan=document.getElementById('btn-salvar-planejamento'); if(salvarPlan) salvarPlan.onclick=async()=>{const key=mesAtualKey();if(impedirAlteracaoMes(`${key}-01`))return;const planning={receita:toCents(document.getElementById('pl-receita').value),investimento:toCents(document.getElementById('pl-investimento').value),orcamentos:Object.fromEntries(state.categorias.map(c=>[c.id,toCents(document.getElementById('pl-cat-'+c.id).value)]))};FinTrackState.transaction(current=>({...current,planejamentos:{...current.planejamentos,[key]:planning}}));registrarHistorico('planejamento_salvo',`Planejamento salvo: ${key}`);await saveData();render();};
   const fechar=document.getElementById('btn-fechar-mes'); if(fechar) fechar.onclick=fecharMes;
   const reabrir=document.getElementById('btn-reabrir-mes'); if(reabrir) reabrir.onclick=reabrirMes;
-  const novaMetaBtn=document.getElementById('btn-nova-meta'); if(novaMetaBtn) novaMetaBtn.onclick=()=>FinTrackFormLayer.open('meta');
+  const novaMetaBtn=document.getElementById('btn-nova-meta'); if(novaMetaBtn) novaMetaBtn.onclick=()=>FinTrackForms.open('meta');
 }

@@ -19,4 +19,7 @@ for(const file of files){
 assert.ok(fs.readFileSync('js/forms/transactions.js','utf8').includes('FinTrackServices.transfers.upsert'));
 assert.ok(fs.readFileSync('js/forms/entry.js','utf8').includes('FinTrackServices.installments.expand'));
 assert.ok(fs.readFileSync('js/forms/payments.js','utf8').includes('FinTrackServices.payments'));
+assert.equal(fs.existsSync('js/forms/legacy-adapter.js'),false);
+assert.doesNotMatch(fs.readFileSync('js/ui/screen-handlers.js','utf8'),/FinTrackFormLayer/);
+assert.doesNotMatch(fs.readFileSync('js/ui/screen-events.js','utf8'),/FinTrackFormLayer/);
 console.log('architecture tests: OK');

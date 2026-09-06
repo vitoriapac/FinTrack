@@ -5,6 +5,9 @@ function collect(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true}
 collect('js');
 for(const file of files) new vm.Script(fs.readFileSync(file,'utf8'),{filename:file});
 const html=fs.readFileSync('index.html','utf8');
-const inline=html.slice(html.indexOf('<script>')+8,html.lastIndexOf('</script>'));
-new vm.Script(inline,{filename:'index.html:inline'});
+assertNoInlineScripts(html);
 console.log('syntax tests: OK');
+
+function assertNoInlineScripts(source){
+  if(/<script(?![^>]*\bsrc=)[^>]*>/i.test(source)) throw new Error('index.html contém JavaScript inline');
+}

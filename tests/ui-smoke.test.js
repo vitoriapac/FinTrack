@@ -2,6 +2,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 
 const html=fs.readFileSync('index.html','utf8');
+const app=fs.readFileSync('js/app.js','utf8');
 const views=['home','lancamentos','vencimentos','balanco','planejamento','metas','cadastro'];
 const viewFiles={
   home:'js/views/home.js',
@@ -24,6 +25,6 @@ for(const required of ['btn-novo-lancamento','btn-nova-transferencia','btn-novo-
   assert.ok(html.includes(required)||Object.values(viewFiles).some(file=>fs.readFileSync(file,'utf8').includes(required)),`ação ausente: ${required}`);
 }
 
-assert.ok(html.includes('FinTrackStorage.set'),'persistência não conectada');
-assert.ok(html.includes('normalizeData(DEFAULT_DATA)'),'fallback não normalizado');
+assert.ok(app.includes('FinTrackStorage.set'),'persistência não conectada');
+assert.ok(app.includes('normalizeData(DEFAULT_DATA)'),'fallback não normalizado');
 console.log('ui smoke tests: OK');

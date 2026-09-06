@@ -18,6 +18,8 @@ Aplicação web local para controle financeiro pessoal, construída com HTML, CS
 
 ```text
 index.html              shell da aplicação e compatibilidade do ambiente
+css/app.css             estilos responsivos e estados de foco
+js/app.js               composição, renderizadores e inicialização da aplicação
 js/core/                schema, migrations, normalização, validação e fechamento
 js/financial-core.js    regras financeiras centralizadas
 js/services/            operações imutáveis de lançamentos, pagamentos e cadastros
@@ -39,7 +41,9 @@ Requer Node.js 18 ou superior:
 npm test
 ```
 
-A suíte cobre cálculos financeiros, persistência, migrações v1–v5, importação, deduplicação, quarentena, relacionamentos, transferências, fechamentos e sintaxe dos módulos.
+A suíte cobre cálculos financeiros, persistência, migrações v1–v5, importação, deduplicação, quarentena, relacionamentos, transferências, fechamentos, contratos de UI, separação de recursos e sintaxe dos módulos.
+
+Os fluxos principais também são validados em navegador real com Playwright: navegação entre telas, abertura e fechamento de modal, validação acessível de formulário, foco por teclado, layout móvel e ausência de erros no console.
 
 ## Armazenamento e privacidade
 
@@ -56,6 +60,5 @@ O GitHub Actions executa `npm test` em pushes para `main` e em pull requests dir
 ## Roadmap
 
 - Migrar progressivamente para ES Modules
-- Extrair o CSS do HTML
-- Ampliar testes de browser e acessibilidade
+- Automatizar os cenários Playwright no CI quando a aplicação adotar dependências de desenvolvimento
 - Evoluir autenticação e sincronização somente quando houver backend definido
