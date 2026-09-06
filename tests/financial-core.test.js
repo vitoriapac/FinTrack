@@ -31,6 +31,14 @@ assert.equal(basicTotals.receitas, 50000);
 assert.equal(basicTotals.despesas, 20000);
 assert.equal(basicTotals.saldo, 30000);
 assert.equal(core.accountBalance(basic, basic.contas[0], '2026-09-05'), 40000);
+const forecast=data([
+  {id:'rr',tipo:'Receita',data:'2026-09-01',categoriaId:'r',contaId:'a',valor:100,status:'Pago'},
+  {id:'rp',tipo:'Receita',data:'2026-09-02',categoriaId:'r',contaId:'a',valor:50,status:'Pendente'},
+  {id:'dr',tipo:'Despesa',data:'2026-09-03',categoriaId:'d',contaId:'a',valor:40,status:'Pago'},
+  {id:'dp',tipo:'Despesa',data:'2026-09-04',categoriaId:'d',contaId:'a',valor:20,status:'Pendente'},
+]);
+const summary=core.financialSummary(forecast,9,2026,'2026-09-05');
+assert.deepEqual({...summary},{receitasRealizadas:10000,receitasPendentes:5000,despesasRealizadas:4000,despesasPendentes:2000,investimentosRealizados:0,investimentosPendentes:0,resultadoRealizado:6000,saldoProjetado:9000});
 
 const transfer = data([
   { id: 't1', tipoOperacao: 'transferencia', natureza: 'transferencia', movimentoTransferencia: 'saida', tipo: 'Despesa', data: '2026-09-01', contaId: 'a', contaDestinoId: 'b', valor: 50, status: 'Pago', operacaoId: 'op1' },
@@ -84,5 +92,6 @@ assert.equal(debtProjection.periods, 10);
 assert.ok(debtProjection.installment > 10000);
 assert.ok(debtProjection.totalInterest > 0);
 assert.equal(core.debtProjection({ saldo: 100000, juros: 0, parcelasRestantes: 10 }).installment, 10000);
+assert.deepEqual({...core.debtPaymentBreakdown({saldo:100000,juros:1},12000)},{payment:12000,interest:1000,interestPaid:1000,amortization:11000,newBalance:89000});
 
 console.log('financial-core tests: OK');

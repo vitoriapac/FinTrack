@@ -138,6 +138,9 @@ function lancamentosDoMes(mes, ano){
 function totaisDoMes(mes, ano){
   return window.FinTrackCore.totals(state,mes,ano,todayLocal());
 }
+function resumoFinanceiroDoMes(mes,ano){
+  return window.FinTrackCore.financialSummary(state,mes,ano,todayLocal());
+}
 
 function gastoPorCategoria(categoriaId, mes, ano){
   return window.FinTrackCore.categorySpend(state,categoriaId,mes,ano,todayLocal());
@@ -310,9 +313,15 @@ function renderQuarantine(){
   return `<div class="section"><div class="section-head"><div><h2>Quarentena de dados</h2><p class="section-sub">Registros isolados automaticamente para proteger os cálculos</p></div><span class="stat-meta">${items.length} registro(s)</span></div>${items.length?`<table><thead><tr><th>Tipo</th><th>Origem</th><th>Motivo</th></tr></thead><tbody>${items.map(item=>`<tr><td>${esc(item.tipo)}</td><td>${esc(item.origemId||'—')}</td><td>${esc(item.motivo||'Inconsistência detectada')}</td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum dado em quarentena','Não foram encontradas inconsistências que exigissem isolamento.')}</div>`;
 }
 
+function statusFatura(invoice){
+  if(invoice.outstanding===0&&invoice.total>0) return 'Paga';
+  if(invoice.paid>0) return 'Parcial';
+  if(invoice.outstanding>0&&invoice.dueDate<todayLocal()) return 'Vencida';
+  return 'Aberta';
+}
 function renderCartoesTab(){
   const invoices=state.cartoes.map(c=>({card:c,invoice:FinTrackCore.cardInvoice(state,c,new Date())}));
-  return `<div class="section"><div class="section-head"><div><h2>Cartões de crédito</h2><p class="section-sub">Fatura atual calculada pelo ciclo de fechamento</p></div><button class="btn btn-primary" id="btn-novo-cartao">Novo cartão</button></div>${invoices.length?`<table><thead><tr><th>Nome</th><th>Bandeira</th><th class="num">Fatura em aberto</th><th class="num">Disponível</th><th>Vencimento</th><th></th></tr></thead><tbody>${invoices.map(({card:c,invoice})=>`<tr><td>${esc(c.nome)}</td><td>${esc(c.bandeira||'—')}</td><td class="num money-out">${formatMoney(invoice.outstanding)}<small style="display:block;color:var(--muted);">${invoice.paid?`Pago: ${formatMoney(invoice.paid)} · `:''}${invoice.items.length} compra(s)</small></td><td class="num ${invoice.available<0?'money-out':''}">${formatMoney(invoice.available)}</td><td>${formatDate(invoice.dueDate)}</td><td><button class="icon-btn" data-action="pay-card" data-id="${c.id}" ${invoice.outstanding?'':'disabled'}>Pagar</button><button class="icon-btn" data-action="edit-cartao" data-id="${c.id}">Editar</button><button class="icon-btn" data-action="del-cartao" data-id="${c.id}">Excluir</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum cartão cadastrado','Cadastre cartões para organizar futuras faturas e limites.')}</div>`;
+  return `<div class="section"><div class="section-head"><div><h2>Cartões de crédito</h2><p class="section-sub">Fatura atual calculada pelo ciclo de fechamento</p></div><button class="btn btn-primary" id="btn-novo-cartao">Novo cartão</button></div>${invoices.length?`<table><thead><tr><th>Nome</th><th>Bandeira</th><th>Estado</th><th class="num">Fatura em aberto</th><th class="num">Disponível</th><th>Vencimento</th><th></th></tr></thead><tbody>${invoices.map(({card:c,invoice})=>`<tr><td>${esc(c.nome)}</td><td>${esc(c.bandeira||'—')}</td><td><span class="badge ${statusFatura(invoice)==='Paga'?'badge-paid':'badge-pending'}">${statusFatura(invoice)}</span></td><td class="num money-out">${formatMoney(invoice.outstanding)}<small style="display:block;color:var(--muted);">${invoice.paid?`Pago: ${formatMoney(invoice.paid)} · `:''}${invoice.items.length} compra(s)</small></td><td class="num ${invoice.available<0?'money-out':''}">${formatMoney(invoice.available)}</td><td>${formatDate(invoice.dueDate)}</td><td><button class="icon-btn" data-action="pay-card" data-id="${c.id}" ${invoice.outstanding?'':'disabled'}>Pagar</button><button class="icon-btn" data-action="edit-cartao" data-id="${c.id}">Editar</button><button class="icon-btn" data-action="del-cartao" data-id="${c.id}">Excluir</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum cartão cadastrado','Cadastre cartões para organizar futuras faturas e limites.')}</div>`;
 }
 function renderDividasTab(){
   const projected=state.dividas.map(d=>({debt:d,projection:FinTrackCore.debtProjection(d)}));
@@ -320,11 +329,11 @@ function renderDividasTab(){
 }
 function renderCardPaymentHistory(){
   const payments=[...(state.pagamentosCartao||[])].sort((a,b)=>String(b.data).localeCompare(String(a.data)));
-  return `<div class="section"><div class="section-head"><h2>Pagamentos de faturas</h2><span class="stat-meta">${payments.length} registro(s)</span></div>${payments.length?`<table><thead><tr><th>Data</th><th>Cartão</th><th>Fatura</th><th class="num">Valor</th><th></th></tr></thead><tbody>${payments.map(payment=>`<tr><td>${formatDate(payment.data)}</td><td>${esc(state.cartoes.find(card=>card.id===payment.cartaoId)?.nome||'Cartão removido')}</td><td>${esc(payment.invoiceKey)}</td><td class="num">${formatMoney(payment.valor)}</td><td><button class="icon-btn" data-action="reverse-card-payment" data-id="${payment.id}">Estornar</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum pagamento registrado','Os pagamentos de faturas aparecerão aqui.')}</div>`;
+  return `<div class="section"><div class="section-head"><h2>Pagamentos de faturas</h2><span class="stat-meta">${payments.length} registro(s)</span></div>${payments.length?`<table><thead><tr><th>Data</th><th>Cartão</th><th>Conta</th><th>Fatura</th><th class="num">Valor</th><th></th></tr></thead><tbody>${payments.map(payment=>`<tr><td>${formatDate(payment.data)}</td><td>${esc(state.cartoes.find(card=>card.id===payment.cartaoId)?.nome||'Cartão removido')}</td><td>${esc(contaById(payment.contaId)?.nome||'Pagamento legado')}</td><td>${esc(payment.invoiceKey)}</td><td class="num">${formatMoney(payment.valor)}</td><td><button class="icon-btn" data-action="reverse-card-payment" data-id="${payment.id}">Estornar</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum pagamento registrado','Os pagamentos de faturas aparecerão aqui.')}</div>`;
 }
 function renderDebtPaymentHistory(){
   const payments=[...(state.pagamentosDividas||[])].sort((a,b)=>String(b.data).localeCompare(String(a.data)));
-  return `<div class="section"><div class="section-head"><h2>Pagamentos de dívidas</h2><span class="stat-meta">${payments.length} registro(s)</span></div>${payments.length?`<table><thead><tr><th>Data</th><th>Dívida</th><th class="num">Valor</th><th></th></tr></thead><tbody>${payments.map(payment=>`<tr><td>${formatDate(payment.data)}</td><td>${esc(state.dividas.find(debt=>debt.id===payment.dividaId)?.credor||'Dívida removida')}</td><td class="num">${formatMoney(payment.valor)}</td><td><button class="icon-btn" data-action="reverse-debt-payment" data-id="${payment.id}">Estornar</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum pagamento registrado','Os pagamentos de dívidas aparecerão aqui.')}</div>`;
+  return `<div class="section"><div class="section-head"><h2>Pagamentos de dívidas</h2><span class="stat-meta">${payments.length} registro(s)</span></div>${payments.length?`<table><thead><tr><th>Data</th><th>Dívida</th><th>Conta</th><th class="num">Juros</th><th class="num">Amortização</th><th class="num">Valor</th><th></th></tr></thead><tbody>${payments.map(payment=>`<tr><td>${formatDate(payment.data)}</td><td>${esc(state.dividas.find(debt=>debt.id===payment.dividaId)?.credor||'Dívida removida')}</td><td>${esc(contaById(payment.contaId)?.nome||'Pagamento legado')}</td><td class="num">${payment.juros===undefined?'—':formatMoney(payment.juros)}</td><td class="num">${payment.amortizacao===undefined?'—':formatMoney(payment.amortizacao)}</td><td class="num">${formatMoney(payment.valor)}</td><td><button class="icon-btn" data-action="reverse-debt-payment" data-id="${payment.id}">Estornar</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum pagamento registrado','Os pagamentos de dívidas aparecerão aqui.')}</div>`;
 }
 function renderBackupTab(){
   const temDemo = state.lancamentos.some(l => String(l.id).startsWith('demo-'));
@@ -524,7 +533,7 @@ function renderContasTab(){
         <tbody>
           ${state.contas.map(c => `
             <tr>
-              <td>${c.nome}</td>
+              <td>${esc(c.nome)}</td>
               <td class="num">${formatMoney(c.saldoInicial)}</td>
               <td>${formatDate(c.dataSaldoInicial)}</td>
               <td class="num"><strong>${formatMoney(saldoAtualConta(c))}</strong></td>

@@ -31,8 +31,8 @@
         if(value<=0){error.textContent='Informe um valor maior que zero.';return;}
         if(!asset){error.textContent='Informe o tipo do ativo.';return;}
         const movement=document.getElementById('inv-tipo').value,category=state.categorias.find(item=>item.id==='cat-investimento')||state.categorias.find(item=>String(item.nome||'').toLowerCase().includes('investimento'));
-        const next=FinTrackServices.entries.add(state,{id:uid('investimento'),operacaoId:uid('op-investimento'),tipoOperacao:'investimento',natureza:'investimento',movimentoInvestimento:movement,tipo:'Despesa',data,descricao:document.getElementById('inv-descricao').value.trim()||`${movement==='aporte'?'Aporte':'Resgate'} · ${asset}`,contaId:document.getElementById('inv-conta').value,categoriaId:category?.id,valor:value,status:document.getElementById('inv-status').value,ativo:asset,instituicao:institution,fixa:false});
-        FinTrackState.replaceState(next);registrarHistorico('criacao_investimento',`${movement==='aporte'?'Aporte':'Resgate'} registrado: ${asset}`,{valor:value,instituicao:institution});await saveData();closeModal();render();
+        const result=FinTrackServices.investments.register(state,{movimentoInvestimento:movement,data,descricao:document.getElementById('inv-descricao').value.trim()||`${movement==='aporte'?'Aporte':'Resgate'} · ${asset}`,contaId:document.getElementById('inv-conta').value,categoriaId:category?.id,valor:value,status:document.getElementById('inv-status').value,ativo:asset,instituicao:institution},uid);
+        FinTrackState.replaceState(result.state);registrarHistorico('criacao_investimento',`${movement==='aporte'?'Aporte':'Resgate'} registrado: ${asset}`,{operacaoId:result.operationId,valor:value,instituicao:institution});await saveData();closeModal();render();
       };
     });
   };

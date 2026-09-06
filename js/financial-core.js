@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const CORE_VERSION = '1.0.0';
+  const CORE_VERSION = '1.1.0';
   const clone = value => JSON.parse(JSON.stringify(value));
   const toCents = value => Math.round(Number(value || 0) * 100);
 
@@ -49,6 +49,8 @@
   function account(data,id){ return (data.contas||[]).find(c=>c.id===id); }
   function nature(data,l){
     if(l.natureza==='transferencia'||l.tipoOperacao==='transferencia') return 'transferencia';
+    if(l.natureza==='pagamento_cartao'||l.tipoOperacao==='pagamento_cartao') return 'pagamento_cartao';
+    if(l.natureza==='pagamento_divida'||l.tipoOperacao==='pagamento_divida') return 'pagamento_divida';
     const c=category(data,l.categoriaId);
     if(l.tipoOperacao==='investimento'||c?.id==='cat-investimento'||String(c?.nome||'').toLowerCase().includes('investimento')) return 'investimento';
     if(c?.natureza==='movimentacao') return 'transferencia';
@@ -68,10 +70,17 @@
     });
   }
   function totals(data,mes,ano,today){
+    const summary=financialSummary(data,mes,ano,today);
+    return {receitas:summary.receitasRealizadas,despesas:summary.despesasRealizadas,saldo:summary.resultadoRealizado};
+  }
+  function financialSummary(data,mes,ano,today){
     const items=monthEntries(data,mes,ano,today);
-    const receitas=items.filter(l=>nature(data,l)==='receita').reduce((s,l)=>s+Number(l.valor),0);
-    const despesas=items.filter(l=>nature(data,l)==='despesa').reduce((s,l)=>s+Number(l.valor),0);
-    return {receitas,despesas,saldo:receitas-despesas};
+    const sum=(target,status)=>items.filter(item=>nature(data,item)===target&&item.status===status).reduce((total,item)=>total+Number(item.valor||0),0);
+    const receitasRealizadas=sum('receita','Pago'),receitasPendentes=sum('receita','Pendente');
+    const despesasRealizadas=sum('despesa','Pago'),despesasPendentes=sum('despesa','Pendente');
+    const investment=(status)=>items.filter(item=>nature(data,item)==='investimento'&&item.status===status).reduce((total,item)=>total+(item.movimentoInvestimento==='resgate'?-Number(item.valor||0):Number(item.valor||0)),0);
+    const investimentosRealizados=investment('Pago'),investimentosPendentes=investment('Pendente');
+    return {receitasRealizadas,receitasPendentes,despesasRealizadas,despesasPendentes,investimentosRealizados,investimentosPendentes,resultadoRealizado:receitasRealizadas-despesasRealizadas,saldoProjetado:receitasRealizadas+receitasPendentes-despesasRealizadas-despesasPendentes};
   }
   function totalByNature(data,mes,ano,target,today){
     return monthEntries(data,mes,ano,today).filter(l=>nature(data,l)===target && !(target==='transferencia'&&l.movimentoTransferencia==='entrada')).reduce((s,l)=>s+(target==='investimento'&&l.movimentoInvestimento==='resgate'?-Number(l.valor):Number(l.valor)),0);
@@ -125,6 +134,13 @@
     const totalPaid=installment*periods;
     return {installment,totalPaid,totalInterest:Math.max(0,totalPaid-principal),periods,monthlyRate};
   }
+  function debtPaymentBreakdown(debt,amount){
+    const principal=Math.max(0,Number(debt?.saldo||0)),payment=Math.max(0,Math.round(Number(amount||0)));
+    const interest=Math.round(principal*Math.max(0,Number(debt?.juros||0))/100);
+    const interestPaid=Math.min(payment,interest);
+    const amortization=Math.min(principal,Math.max(0,payment-interestPaid));
+    return {payment,interest,interestPaid,amortization,newBalance:principal-amortization};
+  }
 
-  window.FinTrackCore={version:CORE_VERSION,normalizeData,nature,monthEntries,totals,totalByNature,categorySpend,accountBalance,cardInvoice,debtProjection,category,account,seriesActive,toCents};
+  window.FinTrackCore={version:CORE_VERSION,normalizeData,nature,monthEntries,totals,financialSummary,totalByNature,categorySpend,accountBalance,cardInvoice,debtProjection,debtPaymentBreakdown,category,account,seriesActive,toCents};
 })();

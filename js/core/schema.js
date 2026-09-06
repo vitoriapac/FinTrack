@@ -1,5 +1,5 @@
 (function(){
-  const CURRENT_SCHEMA_VERSION=5;
+  const CURRENT_SCHEMA_VERSION=6;
   const MONEY_FIELDS={
     contas:['saldoInicial'],
     categorias:['orcado'],
@@ -8,7 +8,8 @@
     dividas:['saldo'],
     metas:['alvo','acumulado','aporte'],
     pagamentosCartao:['valor'],
-    pagamentosDividas:['valor','saldoAnterior'],
+    pagamentosDividas:['valor','juros','amortizacao','saldoAnterior','saldoPosterior'],
+    operacoes:['valor'],
     fechamentos:['resultado','gasto','investido'],
     planejamentos:['receita','investimento'],
   };

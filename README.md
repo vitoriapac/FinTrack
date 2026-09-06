@@ -7,7 +7,8 @@ Aplicação web local para controle financeiro pessoal, construída com HTML, CS
 - Receitas, despesas, transferências e investimentos
 - Lançamentos parcelados e recorrentes
 - Contas, categorias, cartões e dívidas
-- Faturas de cartão e registro de pagamentos
+- Faturas com pagamentos parciais vinculados às contas
+- Dívidas com separação entre juros e amortização
 - Planejamento mensal e fechamento com snapshot
 - Metas financeiras
 - Backups JSON e importação CSV com pré-validação e deduplicação
@@ -41,7 +42,7 @@ Requer Node.js 18 ou superior:
 npm test
 ```
 
-A suíte cobre cálculos financeiros, persistência, migrações v1–v5, importação, deduplicação, quarentena, relacionamentos, transferências, fechamentos, contratos de UI, separação de recursos e sintaxe dos módulos.
+A suíte cobre cálculos financeiros, persistência, migrações v1–v6, importação, deduplicação, quarentena, relacionamentos, transferências, pagamentos e reversões atômicas, juros, amortização, fechamentos, contratos de UI, separação de recursos e sintaxe dos módulos.
 
 Os fluxos principais também são validados em navegador real com Playwright: navegação entre telas, abertura e fechamento de modal, validação acessível de formulário, foco por teclado, layout móvel e ausência de erros no console.
 
@@ -51,7 +52,7 @@ O FinTrack foi projetado para uso local. Backups podem ser exportados manualment
 
 ## Modelo financeiro
 
-Valores monetários persistidos são armazenados como inteiros em centavos. O schema atual é a versão 5. Dados antigos passam por migração antes do uso; registros inseguros são isolados na quarentena exibida em Cadastro → Auditoria.
+Valores monetários persistidos são armazenados como inteiros em centavos. O schema atual é a versão 6. Dados antigos passam por migração antes do uso; registros inseguros são isolados na quarentena exibida em Cadastro → Auditoria.
 
 ## CI
 

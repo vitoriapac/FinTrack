@@ -6,7 +6,7 @@
   function validateData(data){
     const errors=[],warnings=[];
     if(!data||typeof data!=='object') return {valid:false,errors:['Dados ausentes'],warnings};
-    const schema=window.FinTrackSchema||{version:5,requiredCollections:[]};
+    const schema=window.FinTrackSchema||{version:6,requiredCollections:[]};
     if(Number(data.schemaVersion)!==schema.version) errors.push('schemaVersion inválido');
     (schema.requiredCollections||[]).forEach(key=>{if(!Array.isArray(data[key])) errors.push(`${key} deve ser uma lista`);});
     for(const key of ['planejamentos','fechamentos']) if(!data[key]||typeof data[key]!=='object'||Array.isArray(data[key])) errors.push(`${key} deve ser um objeto`);
@@ -21,6 +21,20 @@
     }
 
     const accounts=new Set((data.contas||[]).map(item=>item.id)),categories=new Set((data.categorias||[]).map(item=>item.id)),cards=new Set((data.cartoes||[]).map(item=>item.id)),debts=new Set((data.dividas||[]).map(item=>item.id));
+    for(const card of data.cartoes||[]){
+      if(!Number.isInteger(card.limite)||card.limite<0) errors.push(`cartão ${card.id} com limite inválido`);
+      if(!Number.isInteger(Number(card.fechamento))||Number(card.fechamento)<1||Number(card.fechamento)>31) errors.push(`cartão ${card.id} com fechamento inválido`);
+      if(!Number.isInteger(Number(card.vencimento))||Number(card.vencimento)<1||Number(card.vencimento)>31) errors.push(`cartão ${card.id} com vencimento inválido`);
+    }
+    for(const debt of data.dividas||[]){
+      if(!Number.isInteger(debt.saldo)||debt.saldo<0) errors.push(`dívida ${debt.id} com saldo inválido`);
+      if(!Number.isFinite(Number(debt.juros))||Number(debt.juros)<0) errors.push(`dívida ${debt.id} com juros inválidos`);
+      if(!Number.isInteger(Number(debt.parcelasRestantes))||Number(debt.parcelasRestantes)<0) errors.push(`dívida ${debt.id} com parcelas inválidas`);
+    }
+    for(const goal of data.metas||[]){
+      if(!Number.isInteger(goal.alvo)||goal.alvo<=0) errors.push(`meta ${goal.id} com alvo inválido`);
+      if(!Number.isInteger(goal.acumulado)||goal.acumulado<0) errors.push(`meta ${goal.id} com acumulado inválido`);
+    }
     for(const item of data.lancamentos||[]){
       if(!datePattern.test(String(item.data||''))) errors.push(`lançamento ${item.id||'sem id'} com data inválida`);
       if(!Number.isInteger(item.valor)||item.valor<=0) errors.push(`lançamento ${item.id||'sem id'} com valor inválido em centavos`);
@@ -33,10 +47,25 @@
       if(!cards.has(payment.cartaoId)) warnings.push(`cartão ausente no pagamento ${payment.id}`);
       if(!payment.invoiceKey||!/^\d{4}-\d{2}$/.test(payment.invoiceKey)) errors.push(`pagamento ${payment.id||'sem id'} com fatura inválida`);
       if(!Number.isInteger(payment.valor)||payment.valor<=0) errors.push(`pagamento ${payment.id||'sem id'} com valor inválido`);
+      if(!payment.contaId) warnings.push(`pagamento legado sem conta: ${payment.id}`); else if(!accounts.has(payment.contaId)) errors.push(`conta ausente no pagamento ${payment.id}`);
     }
     for(const payment of data.pagamentosDividas||[]){
       if(!debts.has(payment.dividaId)) warnings.push(`dívida ausente no pagamento ${payment.id}`);
       if(!Number.isInteger(payment.valor)||payment.valor<=0) errors.push(`pagamento ${payment.id||'sem id'} com valor inválido`);
+      if(!payment.contaId) warnings.push(`pagamento legado sem conta: ${payment.id}`); else if(!accounts.has(payment.contaId)) errors.push(`conta ausente no pagamento ${payment.id}`);
+      if(payment.juros!==undefined&&(!Number.isInteger(payment.juros)||payment.juros<0)) errors.push(`pagamento ${payment.id} com juros inválidos`);
+      if(payment.amortizacao!==undefined&&(!Number.isInteger(payment.amortizacao)||payment.amortizacao<0)) errors.push(`pagamento ${payment.id} com amortização inválida`);
+    }
+
+    const operations=new Map((data.operacoes||[]).map(item=>[item.id,item]));
+    for(const payment of [...(data.pagamentosCartao||[]),...(data.pagamentosDividas||[])]){
+      if(payment.operacaoId&&!operations.has(payment.operacaoId)) errors.push(`operação ausente no pagamento ${payment.id}`);
+      if(payment.lancamentoId&&!(data.lancamentos||[]).some(item=>item.id===payment.lancamentoId)) errors.push(`movimento ausente no pagamento ${payment.id}`);
+    }
+    for(const operation of data.operacoes||[]){
+      if(!operation.tipo) errors.push(`operação ${operation.id} sem tipo`);
+      if(operation.valor!==undefined&&(!Number.isInteger(operation.valor)||operation.valor<=0)) errors.push(`operação ${operation.id} com valor inválido`);
+      if(operation.contaId&&!accounts.has(operation.contaId)) errors.push(`operação ${operation.id} com conta ausente`);
     }
 
     const transfers=new Map();
@@ -70,8 +99,8 @@
     const accounts=validIds(next.contas),categories=validIds(next.categorias),cards=validIds(next.cartoes),debts=validIds(next.dividas);
     const rejected=next.lancamentos.filter(item=>!datePattern.test(String(item.data||''))||!Number.isInteger(item.valor)||item.valor<=0||(item.contaId&&!accounts.has(item.contaId))||(item.categoriaId&&!categories.has(item.categoriaId))||(item.cartaoId&&!cards.has(item.cartaoId)));
     if(rejected.length){const ids=new Set(rejected.map(item=>item.id));next.lancamentos=next.lancamentos.filter(item=>!ids.has(item.id));next.quarentena.push(...rejected.map(item=>({id:`quarentena-${item.id}`,tipo:'lancamento_invalido',origemId:item.id,motivo:'Referência, data ou valor inválido',dados:item})));}
-    next.pagamentosCartao=next.pagamentosCartao.filter(item=>cards.has(item.cartaoId)&&/^\d{4}-\d{2}$/.test(String(item.invoiceKey||''))&&Number.isInteger(item.valor)&&item.valor>0);
-    next.pagamentosDividas=next.pagamentosDividas.filter(item=>debts.has(item.dividaId)&&Number.isInteger(item.valor)&&item.valor>0);
+    next.pagamentosCartao=next.pagamentosCartao.filter(item=>cards.has(item.cartaoId)&&(!item.contaId||accounts.has(item.contaId))&&/^\d{4}-\d{2}$/.test(String(item.invoiceKey||''))&&Number.isInteger(item.valor)&&item.valor>0);
+    next.pagamentosDividas=next.pagamentosDividas.filter(item=>debts.has(item.dividaId)&&(!item.contaId||accounts.has(item.contaId))&&Number.isInteger(item.valor)&&item.valor>0);
     const repaired=repairTransfers(next);
     const groups=new Map();
     repaired.lancamentos.filter(item=>item.serieTipo==='parcelamento'&&item.serieId).forEach(item=>{const group=groups.get(item.serieId)||[];group.push(item);groups.set(item.serieId,group);});
