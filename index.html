@@ -167,6 +167,7 @@
 <script src="js/core/state.js"></script>
 <script src="js/financial-core.js"></script>
 <script src="js/core/closing.js"></script>
+<script src="js/services/financial.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/view-registry.js"></script>
 <script src="js/ui/modal.js"></script>
@@ -250,9 +251,14 @@ async function loadData(){
     state = normalizeData(await FinTrackStorage.get(STORAGE_KEY));
     const report=window.FinTrackValidation.validateData(state);
     if(!report.valid) state=window.FinTrackValidation.repairData(state);
-    state._backups=await FinTrackStorage.load(BACKUPS_KEY,[]);
+    const backups=await FinTrackStorage.load(BACKUPS_KEY,[]);
+    state._backups=Array.isArray(backups)?backups:[];
   }catch(e){
-    state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+    // O fallback também precisa passar pelo mesmo pipeline de migração e
+    // normalização dos dados persistidos. Caso contrário, os valores ficam em
+    // reais enquanto o restante da aplicação trabalha em centavos, e várias
+    // coleções opcionais permanecem indefinidas.
+    state = normalizeData(DEFAULT_DATA);
     await saveData();
   }
 }

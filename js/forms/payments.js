@@ -5,7 +5,7 @@
       document.getElementById('pay-card-save').onclick=async()=>{
         const value=toCents(document.getElementById('pay-card-value').value),error=document.getElementById('pay-card-error');
         if(value<=0||value>invoice.outstanding){error.textContent='Informe um valor maior que zero e até o saldo da fatura.';return;}
-        state.pagamentosCartao.push({id:uid('pagamento-cartao'),cartaoId:card.id,invoiceKey:invoice.key,valor:value,data:document.getElementById('pay-card-date').value});
+        try{FinTrackState.replaceState(FinTrackServices.payments.card(state,{id:uid('pagamento-cartao'),cartaoId:card.id,invoiceKey:invoice.key,valor:value,outstanding:invoice.outstanding,data:document.getElementById('pay-card-date').value}));}catch(paymentError){error.textContent=paymentError.message;return;}
         registrarHistorico('pagamento_fatura',`Pagamento de fatura: ${card.nome}`,{valor:value,invoiceKey:invoice.key});await saveData();closeModal();render();
       };
     });
@@ -17,8 +17,7 @@
       document.getElementById('pay-debt-save').onclick=async()=>{
         const value=toCents(document.getElementById('pay-debt-value').value),error=document.getElementById('pay-debt-error');
         if(value<=0||value>debt.saldo){error.textContent='Informe um valor maior que zero e até o saldo atual.';return;}
-        debt.saldo=Math.max(0,debt.saldo-value);debt.parcelasRestantes=Math.max(0,(Number(debt.parcelasRestantes)||0)-1);
-        state.pagamentosDividas.push({id:uid('pagamento-divida'),dividaId:debt.id,valor:value,data:document.getElementById('pay-debt-date').value});
+        try{FinTrackState.replaceState(FinTrackServices.payments.debt(state,{id:uid('pagamento-divida'),dividaId:debt.id,valor:value,data:document.getElementById('pay-debt-date').value}));}catch(paymentError){error.textContent=paymentError.message;return;}
         registrarHistorico('pagamento_divida',`Pagamento registrado: ${debt.credor}`,{valor:value,dividaId:debt.id});await saveData();closeModal();render();
       };
     });

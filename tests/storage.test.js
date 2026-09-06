@@ -17,3 +17,14 @@ const storage = context.window.FinTrackStorage;
   assert.equal((await storage.load('missing', { fallback: true })).fallback, true);
   console.log('storage tests: OK');
 })().catch(error=>{ console.error(error); process.exitCode=1; });
+
+const fallbackContext = { window: {} };
+vm.createContext(fallbackContext);
+vm.runInContext(fs.readFileSync('js/storage.js','utf8'), fallbackContext);
+const fallbackStorage = fallbackContext.window.FinTrackStorage;
+(async()=>{
+  await fallbackStorage.set('fallback', { value: 7 });
+  assert.equal((await fallbackStorage.get('fallback')).value, 7);
+  assert.equal((await fallbackStorage.load('missing', 'default')), 'default');
+  console.log('storage fallback tests: OK');
+})().catch(error=>{ console.error(error); process.exitCode=1; });

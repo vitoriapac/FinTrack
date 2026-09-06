@@ -25,7 +25,9 @@ let observed=0;
 const unsubscribe=context.window.FinTrackState.subscribe(next=>{observed=next.value;});
 context.window.FinTrackState.updateState(state=>({...state,value:state.value+2}));
 assert.equal(context.window.FinTrackState.getState().value,3);
-assert.equal(observed,3);
+context.window.FinTrackState.transaction(state=>({...state,value:state.value+1}));
+assert.equal(context.window.FinTrackState.getState().value,4);
+assert.equal(observed,4);
 unsubscribe();
 
 console.log('registry tests: OK');

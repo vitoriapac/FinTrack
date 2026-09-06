@@ -5,6 +5,12 @@
   function getState(){return adapter?.get?.()??null;}
   function replaceState(next){if(!adapter?.set) throw new Error('FinTrackState não foi conectado');adapter.set(next);subscribers.forEach(listener=>listener(next));return next;}
   function updateState(updater){return replaceState(updater(getState()));}
+  function transaction(updater){
+    const current=getState();
+    if(!current) throw new Error('FinTrackState não possui estado ativo');
+    const next=updater(current);
+    return replaceState(next===undefined?current:next);
+  }
   function subscribe(listener){subscribers.add(listener);return()=>subscribers.delete(listener);}
-  window.FinTrackState={bind,getState,replaceState,updateState,subscribe};
+  window.FinTrackState={bind,getState,replaceState,updateState,transaction,subscribe};
 })();

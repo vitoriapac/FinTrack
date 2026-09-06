@@ -22,6 +22,20 @@ assert.equal(normalized.lancamentos.length,3);
 assert.equal(context.window.FinTrackValidation.validateData(normalized).warnings.length,0);
 const repaired=context.window.FinTrackValidation.repairData({...normalized,lancamentos:[...normalized.lancamentos,{id:null}]});
 assert.equal(repaired.lancamentos.length,3);
+
+const fallback=context.window.FinTrackNormalize.normalizeData({
+  categorias:[{id:'cat-default',nome:'Mercado',tipo:'Saída',orcado:450}],
+  contas:[{id:'conta-default',nome:'Conta',saldoInicial:30,dataSaldoInicial:'2026-01-01'}],
+  lancamentos:[],
+});
+for(const key of ['metas','cartoes','dividas','pagamentosCartao','pagamentosDividas','historico','lixeira','operacoes','series']) assert.ok(Array.isArray(fallback[key]),`${key} deve ser uma lista`);
+for(const key of ['planejamentos','fechamentos']) {
+  assert.equal(typeof fallback[key],'object',`${key} deve ser um objeto`);
+  assert.equal(Object.keys(fallback[key]).length,0,`${key} deve começar vazio`);
+}
+assert.equal(fallback.categorias[0].orcado,45000);
+assert.equal(fallback.contas[0].saldoInicial,3000);
+
 const brokenTransfer={...normalized,lancamentos:[...normalized.lancamentos,{id:'transfer-out',tipo:'Despesa',tipoOperacao:'transferencia',natureza:'transferencia',movimentoTransferencia:'saida',operacaoId:'op-broken',valor:100,data:'2026-02-10',contaId:'a'}]};
 assert.ok(context.window.FinTrackValidation.validateData(brokenTransfer).warnings.some(item=>item.includes('transferência incompleta')));
 const closed=context.window.FinTrackClosing.createSnapshot(normalized,'2026-01',{observacao:'Fechamento de teste',fechadoEm:'2026-02-01T12:00:00.000Z'});
