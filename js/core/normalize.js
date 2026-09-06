@@ -1,6 +1,6 @@
 (function(){
   const clone=value=>JSON.parse(JSON.stringify(value||{}));
-  const arrays=['contas','categorias','lancamentos','metas','cartoes','dividas','pagamentosCartao','pagamentosDividas','historico','lixeira','operacoes','series'];
+  const arrays=['contas','categorias','lancamentos','metas','cartoes','dividas','pagamentosCartao','pagamentosDividas','historico','lixeira','quarentena','operacoes','series'];
   function normalizeData(input,fallback){
     const source=input||fallback||{},data=window.FinTrackMigrations.migrateData(source);
     arrays.forEach(key=>{if(!Array.isArray(data[key])) data[key]=[];});

@@ -7,7 +7,7 @@
         const nome=document.getElementById('cc-nome').value.trim(),limite=toCents(document.getElementById('cc-limite').value),error=document.getElementById('cc-error');
         if(!nome||limite<0){error.textContent='Informe nome e limite válidos.';return;}
         const payload={id:card?.id||uid('cartao'),nome,bandeira:document.getElementById('cc-bandeira').value.trim(),limite,fechamento:Number(document.getElementById('cc-fechamento').value)||null,vencimento:Number(document.getElementById('cc-vencimento').value)||null,ativo:card?.ativo!==false};
-        if(card){const index=state.cartoes.findIndex(item=>item.id===card.id);state.cartoes[index]=payload;}else state.cartoes.push(payload);
+        FinTrackState.replaceState(FinTrackServices.entities.upsert(state,'cartoes',payload));
         registrarHistorico(card?'edicao_cartao':'criacao_cartao',`${card?'Cartão editado':'Cartão criado'}: ${nome}`);await saveData();closeModal();render();
       };
     });

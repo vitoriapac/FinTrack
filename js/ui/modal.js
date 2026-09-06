@@ -31,7 +31,7 @@
   function confirmAction(message,onConfirm,confirmLabel='Excluir'){
     open('Confirmar',`<p style="margin:0 0 4px;color:var(--muted);font-size:14px;">${message}</p><div class="modal-actions"><button class="btn btn-ghost" id="cf-cancel">Cancelar</button><button class="btn btn-primary" id="cf-ok" style="${confirmLabel==='Excluir'?'background:var(--expense);':''}">${escValue(confirmLabel)}</button></div>`);
     document.getElementById('cf-cancel').onclick=close;
-    document.getElementById('cf-ok').onclick=()=>{onConfirm();close();};
+    document.getElementById('cf-ok').onclick=async()=>{close();await onConfirm();};
   }
   function info(title,message){
     open(title,`<p style="margin:0 0 4px;color:var(--muted);font-size:14px;">${message}</p><div class="modal-actions"><button class="btn btn-primary" id="if-ok">Entendi</button></div>`);

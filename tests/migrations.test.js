@@ -7,7 +7,7 @@ vm.createContext(context);
 for(const file of ['js/core/schema.js','js/core/migrations.js','js/core/normalize.js','js/core/validate.js','js/financial-core.js','js/core/closing.js']) vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
 const legacy=JSON.parse(fs.readFileSync('tests/fixtures/legacy-v1.json','utf8'));
 const current=context.window.FinTrackNormalize.normalizeData(legacy);
-assert.equal(current.schemaVersion,4);
+assert.equal(current.schemaVersion,5);
 assert.equal(current.contas[0].saldoInicial,10050);
 assert.equal(current.lancamentos[0].valor,2590);
 assert.equal(current.cartoes[0].limite,120000);

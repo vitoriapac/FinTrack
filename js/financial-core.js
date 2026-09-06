@@ -19,6 +19,7 @@
       return (c.id==='cat-investimento'||c.id==='cat-transferencia'||nome.includes('investimento')||nome.includes('transferência')) ? {...c,natureza:'movimentacao'} : c;
     });
     data.lixeira=data.lixeira||[];
+    data.quarentena=data.quarentena||[];
     data.historico=data.historico||[];
     data._backups=data._backups||[];
     data.planejamentos=data.planejamentos||{};

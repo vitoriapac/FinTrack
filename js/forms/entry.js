@@ -19,20 +19,19 @@
           if(impedirAlteracaoMes(data))return;if(!descricao){error.textContent='Informe uma descrição.';return;}if(!Number.isFinite(valor)||valor<=0){error.textContent='Informe um valor maior que zero.';return;}if(!data||!categoriaId){error.textContent='Preencha data e categoria.';return;}
           const parcelado=document.getElementById('entry-parcelado')?.checked,recorrente=document.getElementById('entry-recorrente')?.checked;if(parcelado&&recorrente){error.textContent='Escolha parcelamento ou recorrência.';return;}
           const payload={id:lanc?.id||uid('lanc'),tipo:initial.tipo,data,dataVencimento:document.getElementById('entry-vencimento').value||undefined,descricao,contaId:document.getElementById('entry-conta').value,categoriaId,cartaoId:document.getElementById('entry-cartao')?.value||null,valor:toCents(valor),status:document.getElementById('entry-status').value,fixa:false,tipoOperacao:initial.tipo==='Receita'?'receita':'despesa',serieId:lanc?.serieId||((parcelado||recorrente)?uid(parcelado?'parcelamento':'recorrencia'):null),serieTipo:lanc?.serieTipo||(parcelado?'parcelamento':recorrente?'recorrencia':undefined),serieStatus:lanc?.serieStatus||((parcelado||recorrente)?'ativa':undefined),parcelaAtual:lanc?.parcelaAtual||(parcelado?1:undefined),totalParcelas:lanc?.totalParcelas||(parcelado?Math.max(2,Math.min(60,Number(document.getElementById('entry-qtd').value)||2)):undefined),frequencia:lanc?.frequencia||(recorrente?document.getElementById('entry-frequencia').value:undefined)};
-          if(lanc){
-            const idx=state.lancamentos.findIndex(x=>x.id===lanc.id);
-            state.lancamentos[idx]=payload;
-          }else{
-            state.lancamentos.push(payload);
-            if(parcelado||recorrente){
-              const n=parcelado?payload.totalParcelas:Math.max(1,Math.min(60,Number(document.getElementById('entry-rec-qtd').value)||1));
-              const total=parcelado?toCents(document.getElementById('entry-total').value):payload.valor;
-              const base=parcelado?Math.floor(total/n):payload.valor;
-              for(let k=1;k<n;k++){
-                state.lancamentos.push({...payload,id:uid('lanc'),data:addInterval(payload.data,k,payload.frequencia||'mensal'),dataVencimento:payload.dataVencimento?addInterval(payload.dataVencimento,k,payload.frequencia||'mensal'):undefined,valor:parcelado?base+(k===n-1?total-base*n:0):payload.valor,status:'Pendente',parcelaAtual:parcelado?k+1:undefined,descricao:parcelado?`${descricao} (${k+1} de ${n})`:descricao});
-              }
-            }
-          }
+          let nextState;
+          if(lanc) nextState=FinTrackServices.entries.replace(state,payload);
+          else if(parcelado){
+            const total=toCents(document.getElementById('entry-total').value),count=payload.totalParcelas;
+            if(total<=0){error.textContent='Informe o valor total do parcelamento.';return;}
+            const installments=FinTrackServices.installments.expand(payload,{totalCents:total,count,frequency:'mensal',addInterval,idFactory:uid});
+            nextState=FinTrackServices.entries.addMany(state,installments);
+          }else if(recorrente){
+            const count=Math.max(1,Math.min(60,Number(document.getElementById('entry-rec-qtd').value)||1));
+            const items=Array.from({length:count},(_,index)=>index===0?payload:{...payload,id:uid('lanc'),data:addInterval(payload.data,index,payload.frequencia),dataVencimento:payload.dataVencimento?addInterval(payload.dataVencimento,index,payload.frequencia):undefined,status:'Pendente'});
+            nextState=FinTrackServices.entries.addMany(state,items);
+          }else nextState=FinTrackServices.entries.add(state,payload);
+          FinTrackState.replaceState(nextState);
           registrarHistorico(lanc?'edicao_lancamento':'criacao_lancamento',`${lanc?'Lançamento editado':'Lançamento criado'}: ${descricao}`,{lancamentoId:payload.id,valor:payload.valor});await saveData();closeModal();render();
         };
       });

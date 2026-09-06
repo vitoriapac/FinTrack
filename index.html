@@ -168,6 +168,7 @@
 <script src="js/financial-core.js"></script>
 <script src="js/core/closing.js"></script>
 <script src="js/services/financial.js"></script>
+<script src="js/core/data-import.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/view-registry.js"></script>
 <script src="js/ui/modal.js"></script>
@@ -247,19 +248,34 @@ let lancMostrarTodos = false;
 /* ---------- Persistência ---------- */
 
 async function loadData(){
+  let raw=null;
   try{
-    state = normalizeData(await FinTrackStorage.get(STORAGE_KEY));
+    raw=await FinTrackStorage.get(STORAGE_KEY);
+    let backups=await FinTrackStorage.load(BACKUPS_KEY,[]);
+    backups=Array.isArray(backups)?backups:[];
+    const sourceVersion=Number(raw?.schemaVersion||1),targetVersion=Number(FinTrackSchema.version);
+    if(sourceVersion<targetVersion){
+      const migrationBackup={id:uid('backup-migracao'),criadoEm:new Date().toISOString(),motivo:`Antes da migração v${sourceVersion} → v${targetVersion}`,registros:Array.isArray(raw?.lancamentos)?raw.lancamentos.length:0,dados:JSON.parse(JSON.stringify(raw))};
+      backups=[...backups,migrationBackup].slice(-5);
+      await FinTrackStorage.set(BACKUPS_KEY,backups);
+    }
+    state=normalizeData(raw);
     const report=window.FinTrackValidation.validateData(state);
-    if(!report.valid) state=window.FinTrackValidation.repairData(state);
-    const backups=await FinTrackStorage.load(BACKUPS_KEY,[]);
-    state._backups=Array.isArray(backups)?backups:[];
+    if(!report.valid||report.warnings.length) state=window.FinTrackValidation.repairData(state);
+    state._backups=backups;
+    if(sourceVersion<targetVersion||!report.valid||report.warnings.length) await saveData();
   }catch(e){
-    // O fallback também precisa passar pelo mesmo pipeline de migração e
-    // normalização dos dados persistidos. Caso contrário, os valores ficam em
-    // reais enquanto o restante da aplicação trabalha em centavos, e várias
-    // coleções opcionais permanecem indefinidas.
-    state = normalizeData(DEFAULT_DATA);
-    await saveData();
+    if(raw){
+      // Nunca substitui dados legíveis por dados padrão quando uma etapa de
+      // backup, migração ou reparo falha. A cópia original continua preservada.
+      state=normalizeData(raw);
+      state._migrationPending=true;
+      state._backups=Array.isArray(state._backups)?state._backups:[];
+      console.error('Migração adiada para preservar os dados originais',e);
+    }else{
+      state=normalizeData(DEFAULT_DATA);
+      await saveData();
+    }
   }
 }
 
@@ -275,29 +291,21 @@ function normalizeData(data){
 async function saveData(){
   try{
     await FinTrackStorage.set(STORAGE_KEY,state);
+    return true;
   }catch(e){
     console.error('Falha ao salvar dados', e);
+    return false;
   }
 }
 
 function snapshotAtual(){ const s=JSON.parse(JSON.stringify(state)); delete s._backups; delete s.restauracaoDemo; delete s.modoDemo; return s; }
 async function registrarBackup(motivo){
   const item={id:uid('backup'),criadoEm:new Date().toISOString(),motivo,registros:state.lancamentos.length,dados:snapshotAtual()};
-  const backups=[...(state._backups||[]),item].slice(-5); state._backups=backups;
+  const backups=[...(state._backups||[]),item].slice(-5); FinTrackState.transaction(current=>({...current,_backups:backups}));
   try{ await FinTrackStorage.set(BACKUPS_KEY,backups); }catch(e){ console.error('Falha ao salvar backup versionado',e); }
 }
 function validarBackup(data){
-  const erros=[]; if(!data||typeof data!=='object') return ['Arquivo não contém um objeto válido.'];
-  if(!data.__centsVersion) erros.push('Versão antiga: valores serão convertidos automaticamente.');
-  for(const chave of ['categorias','contas','lancamentos']) if(!Array.isArray(data[chave])) erros.push(`Campo obrigatório ausente: ${chave}.`);
-  if(!Array.isArray(data.categorias)||!Array.isArray(data.contas)||!Array.isArray(data.lancamentos)) return erros;
-  const ids=(arr,nome)=>{const seen=new Set();arr.forEach((x,i)=>{if(!x.id) erros.push(`${nome}[${i+1}] sem ID.`);else if(seen.has(x.id)) erros.push(`ID duplicado em ${nome}: ${x.id}.`);seen.add(x.id);});};
-  ids(data.categorias,'categorias'); ids(data.contas,'contas'); ids(data.lancamentos,'lancamentos');
-  const cats=new Set(data.categorias.map(x=>x.id)),contas=new Set(data.contas.map(x=>x.id));
-  data.contas.forEach((c,i)=>{if(!c.nome) erros.push(`Conta ${i+1} sem nome.`);if(c.saldoInicial!=null&&!Number.isFinite(Number(c.saldoInicial))) erros.push(`Saldo inválido na conta ${i+1}.`);});
-  data.categorias.forEach((c,i)=>{if(!c.nome) erros.push(`Categoria ${i+1} sem nome.`);});
-  data.lancamentos.forEach((l,i)=>{if(!l.data||!/^(\\d{4})-(\\d{2})-(\\d{2})$/.test(l.data)) erros.push(`Data inválida no lançamento ${i+1}.`);if(!contas.has(l.contaId)) erros.push(`Conta ausente no lançamento ${i+1}.`);if(l.categoriaId&&!cats.has(l.categoriaId)) erros.push(`Categoria ausente no lançamento ${i+1}.`);if(!Number.isFinite(Number(l.valor))) erros.push(`Valor inválido no lançamento ${i+1}.`);});
-  return erros;
+  return FinTrackImport.validateBackup(data,normalizeData,FinTrackValidation.validateData);
 }
 
 /* ---------- Helpers ---------- */
@@ -368,7 +376,7 @@ function serieLabel(lanc){
   return `<span style="color:var(--muted);font-size:12px;">(${serie}${status})</span>`;
 }
 function registrarHistorico(acao, descricao, detalhes={}){
-  state.historico.push({id:uid('hist'),acao,data:todayLocal(),descricao,detalhes});
+  FinTrackState.transaction(current=>({...current,historico:[...(current.historico||[]),{id:uid('hist'),acao,data:todayLocal(),descricao,detalhes}]}));
 }
 function chaveMes(iso){ return iso ? iso.slice(0,7) : mesAtualKey(); }
 function mesFechado(iso){ return FinTrackClosing.isClosed(state.fechamentos?.[chaveMes(iso)]); }
@@ -381,9 +389,8 @@ async function alternarSerie(serieId){
   const itens=itensDaSerie(serieId); if(!itens.length) return;
   const atual=state.series.find(s=>s.id===serieId);
   const status=(atual?.status || itens[0].serieStatus || 'ativa')==='ativa' ? 'pausada' : 'ativa';
-  if(atual) atual.status=status; else state.series.push({id:serieId,tipo:itens[0].serieTipo||'serie',status});
-  itens.forEach(l=>l.serieStatus=status);
-  state.historico.push({id:uid('hist'),acao:status==='ativa'?'retomada_serie':'pausa_serie',data:todayLocal(),descricao:`Série ${serieId} ${status}`});
+  FinTrackState.transaction(current=>({...current,series:atual?current.series.map(series=>series.id===serieId?{...series,status}:series):[...current.series,{id:serieId,tipo:itens[0].serieTipo||'serie',status}],lancamentos:current.lancamentos.map(item=>item.serieId===serieId?{...item,serieStatus:status}:item)}));
+  registrarHistorico(status==='ativa'?'retomada_serie':'pausa_serie',`Série ${serieId} ${status}`);
   await saveData(); render();
 }
 
@@ -485,14 +492,18 @@ function renderBarChart(receitas, despesas){
 }
 
 function mesAtualKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
-function fecharMes(){const key=mesAtualKey();if(mesFechado(`${key}-01`)){infoModal('Mês já fechado','Este mês já está fechado e suas alterações estão protegidas.');return;}const obs=prompt('Observação do fechamento (opcional):','');if(obs!==null){state.fechamentos[key]=FinTrackClosing.createSnapshot(state,key,{observacao:obs,fechadoEm:new Date().toISOString()});registrarHistorico('fechamento_mes',`Mês ${key} fechado`,{snapshot:state.fechamentos[key].snapshot});saveData().then(render);}}
-function reabrirMes(){const key=mesAtualKey();if(!mesFechado(`${key}-01`))return;if(confirm('Reabrir o mês atual? O snapshot histórico será preservado.')){state.fechamentos[key]=FinTrackClosing.reopen(state.fechamentos[key]);registrarHistorico('reabertura_mes',`Mês ${key} reaberto`);saveData().then(render);}}
+function fecharMes(){const key=mesAtualKey();if(mesFechado(`${key}-01`)){infoModal('Mês já fechado','Este mês já está fechado e suas alterações estão protegidas.');return;}const obs=prompt('Observação do fechamento (opcional):','');if(obs!==null){const closing=FinTrackClosing.createSnapshot(state,key,{observacao:obs,fechadoEm:new Date().toISOString()});FinTrackState.transaction(current=>({...current,fechamentos:{...current.fechamentos,[key]:closing}}));registrarHistorico('fechamento_mes',`Mês ${key} fechado`,{snapshot:closing.snapshot});saveData().then(render);}}
+function reabrirMes(){const key=mesAtualKey();if(!mesFechado(`${key}-01`))return;if(confirm('Reabrir o mês atual? O snapshot histórico será preservado.')){const closing=FinTrackClosing.reopen(state.fechamentos[key]);FinTrackState.transaction(current=>({...current,fechamentos:{...current.fechamentos,[key]:closing}}));registrarHistorico('reabertura_mes',`Mês ${key} reaberto`);saveData().then(render);}}
 
 /* ================= CADASTRO ================= */
 
 function renderAuditoriaTab(){
   const itens=[...(state.historico||[])].slice().reverse();
   return `<div class="section"><div class="section-head"><h2>Histórico de alterações</h2><span class="stat-meta">${itens.length} registro(s)</span></div>${itens.length?`<table><thead><tr><th>Data</th><th>Ação</th><th>Descrição</th></tr></thead><tbody>${itens.map(h=>`<tr><td>${formatDate(h.data)}</td><td><span class="badge badge-paid">${esc(h.acao)}</span></td><td>${esc(h.descricao)}</td></tr>`).join('')}</tbody></table>`:emptyState('Nenhuma alteração registrada','As próximas ações relevantes aparecerão aqui.')}</div>`;
+}
+function renderQuarantine(){
+  const items=[...(state.quarentena||[])].slice().reverse();
+  return `<div class="section"><div class="section-head"><div><h2>Quarentena de dados</h2><p class="section-sub">Registros isolados automaticamente para proteger os cálculos</p></div><span class="stat-meta">${items.length} registro(s)</span></div>${items.length?`<table><thead><tr><th>Tipo</th><th>Origem</th><th>Motivo</th></tr></thead><tbody>${items.map(item=>`<tr><td>${esc(item.tipo)}</td><td>${esc(item.origemId||'—')}</td><td>${esc(item.motivo||'Inconsistência detectada')}</td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum dado em quarentena','Não foram encontradas inconsistências que exigissem isolamento.')}</div>`;
 }
 
 function renderCartoesTab(){
@@ -502,6 +513,14 @@ function renderCartoesTab(){
 function renderDividasTab(){
   const projected=state.dividas.map(d=>({debt:d,projection:FinTrackCore.debtProjection(d)}));
   return `<div class="section"><div class="section-head"><div><h2>Controle de dívidas</h2><p class="section-sub">Estimativa de parcelas pelo saldo, juros e prazo informados</p></div><button class="btn btn-primary" id="btn-nova-divida">Nova dívida</button></div>${projected.length?`<table><thead><tr><th>Credor</th><th class="num">Saldo</th><th class="num">Parcela estimada</th><th class="num">Juros projetados</th><th>Próximo vencimento</th><th>Prioridade</th><th></th></tr></thead><tbody>${projected.map(({debt:d,projection:p})=>`<tr><td>${esc(d.credor)}<small style="display:block;color:var(--muted);">${p.periods?p.periods+' parcela(s)':'Prazo não informado'}</small></td><td class="num money-out">${formatMoney(d.saldo)}</td><td class="num">${p.installment?formatMoney(p.installment):'—'}</td><td class="num">${p.totalInterest?formatMoney(p.totalInterest):'—'}</td><td>${formatDate(d.proximoVencimento)}</td><td>${esc(d.prioridade||'—')}</td><td><button class="icon-btn" data-action="pay-divida" data-id="${d.id}">Pagar</button><button class="icon-btn" data-action="edit-divida" data-id="${d.id}">Editar</button><button class="icon-btn" data-action="del-divida" data-id="${d.id}">Excluir</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhuma dívida cadastrada','Cadastre dívidas para acompanhar saldo e prioridade de quitação.')}</div>`;
+}
+function renderCardPaymentHistory(){
+  const payments=[...(state.pagamentosCartao||[])].sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+  return `<div class="section"><div class="section-head"><h2>Pagamentos de faturas</h2><span class="stat-meta">${payments.length} registro(s)</span></div>${payments.length?`<table><thead><tr><th>Data</th><th>Cartão</th><th>Fatura</th><th class="num">Valor</th><th></th></tr></thead><tbody>${payments.map(payment=>`<tr><td>${formatDate(payment.data)}</td><td>${esc(state.cartoes.find(card=>card.id===payment.cartaoId)?.nome||'Cartão removido')}</td><td>${esc(payment.invoiceKey)}</td><td class="num">${formatMoney(payment.valor)}</td><td><button class="icon-btn" data-action="reverse-card-payment" data-id="${payment.id}">Estornar</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum pagamento registrado','Os pagamentos de faturas aparecerão aqui.')}</div>`;
+}
+function renderDebtPaymentHistory(){
+  const payments=[...(state.pagamentosDividas||[])].sort((a,b)=>String(b.data).localeCompare(String(a.data)));
+  return `<div class="section"><div class="section-head"><h2>Pagamentos de dívidas</h2><span class="stat-meta">${payments.length} registro(s)</span></div>${payments.length?`<table><thead><tr><th>Data</th><th>Dívida</th><th class="num">Valor</th><th></th></tr></thead><tbody>${payments.map(payment=>`<tr><td>${formatDate(payment.data)}</td><td>${esc(state.dividas.find(debt=>debt.id===payment.dividaId)?.credor||'Dívida removida')}</td><td class="num">${formatMoney(payment.valor)}</td><td><button class="icon-btn" data-action="reverse-debt-payment" data-id="${payment.id}">Estornar</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum pagamento registrado','Os pagamentos de dívidas aparecerão aqui.')}</div>`;
 }
 function renderBackupTab(){
   const temDemo = state.lancamentos.some(l => String(l.id).startsWith('demo-'));
@@ -574,10 +593,15 @@ function importarJSON(e){
   const status=document.getElementById('backup-status');
   const reader=new FileReader();
   reader.onload=async()=>{ try{
-    const raw=JSON.parse(reader.result); const erros=validarBackup(raw); const fatais=erros.filter(x=>!x.startsWith('Versão antiga'));
-    if(fatais.length){ status.textContent=`Backup rejeitado: ${fatais.slice(0,3).join(' ')}`; return; }
-    const imported=normalizeData(raw); const resumo=`Backup válido: ${imported.lancamentos.length} lançamento(s), ${imported.contas.length} conta(s) e ${imported.categorias.length} categoria(s).`;
-    if(confirm(`${resumo}\n\nOs dados atuais serão salvos como uma versão antes da importação. Continuar?`)){ await registrarBackup('Antes da importação'); state=imported; state._backups=state._backups||[]; await saveData(); status.textContent='Backup importado com sucesso.'; render(); }
+    const raw=JSON.parse(reader.result),report=validarBackup(raw);
+    if(!report.valid){status.textContent=`Backup rejeitado: ${report.errors.slice(0,3).join(' ')}`;return;}
+    const imported=report.warnings.length?FinTrackValidation.repairData(report.normalized):report.normalized;
+    const resumo=`Backup válido: ${imported.lancamentos.length} lançamento(s), ${imported.contas.length} conta(s), ${imported.categorias.length} categoria(s) e ${report.warnings.length} aviso(s).`;
+    if(confirm(`${resumo}\n\nOs dados atuais serão salvos como uma versão antes da importação. Continuar?`)){
+      const previous=state;await registrarBackup('Antes da importação');const backups=state._backups||[];FinTrackState.replaceState({...imported,_backups:backups});
+      if(!await saveData()){FinTrackState.replaceState(previous);status.textContent='A importação falhou e os dados anteriores foram restaurados.';return;}
+      status.textContent='Backup importado com sucesso.';render();
+    }
   }catch(err){ status.textContent='Arquivo inválido. Selecione um backup JSON do FinTrack.'; } };
   reader.readAsText(file);
 }
@@ -585,14 +609,15 @@ function importarJSON(e){
 function importarCSV(e){
   const file=e.target.files[0]; if(!file) return;
   const status=document.getElementById('backup-status'),reader=new FileReader();
-  const parseLine=line=>{const cells=[];let cell='',quoted=false;for(let i=0;i<line.length;i++){const char=line[i];if(char==='"'&&line[i+1]==='"'){cell+='"';i++;continue;}if(char==='"'){quoted=!quoted;continue;}if(char===';'&&!quoted){cells.push(cell);cell='';}else cell+=char;}cells.push(cell);return cells;};
   reader.onload=async()=>{try{
-    const lines=String(reader.result).replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean),rows=lines.slice(1).map(parseLine),valid=rows.filter(row=>row.length>=7);
-    if(!lines.length||!valid.length){status.textContent='CSV inválido ou sem lançamentos.';return;}
-    const findByName=(items,name)=>items.find(item=>String(item.nome||'').trim().toLowerCase()===String(name||'').trim().toLowerCase());
-    const imported=valid.map((row,index)=>{const [data,vencimento,descricao,tipo,conta,categoria,valor,status='Pendente',fixa='Não']=row;const account=findByName(state.contas,conta),cat=findByName(state.categorias,categoria);return {id:uid('csv'),data,dataVencimento:vencimento||undefined,descricao:descricao.trim()||`Importado ${index+1}`,tipo:tipo==='Receita'?'Receita':'Despesa',contaId:account?.id||state.contas[0]?.id,categoriaId:cat?.id||state.categorias.find(item=>item.tipo===(tipo==='Receita'?'Entrada':'Saída'))?.id,valor:toCents(String(valor).replace(/\./g,'').replace(',','.')),status:status==='Pago'?'Pago':'Pendente',fixa:fixa==='Sim'};}).filter(item=>item.data&&item.contaId&&item.categoriaId&&item.valor>0);
-    if(!imported.length){status.textContent='Nenhuma linha válida encontrada. Verifique contas, categorias e valores.';return;}
-    if(confirm(`${imported.length} lançamento(s) válido(s) encontrado(s). Salvar backup e importar?`)){await registrarBackup('Antes da importação CSV');state.lancamentos.push(...imported);registrarHistorico('importacao_csv',`${imported.length} lançamento(s) importado(s)`);await saveData();status.textContent='CSV importado com sucesso.';render();}
+    const preview=FinTrackImport.previewCsv(reader.result,state,uid);
+    if(!preview.items.length){status.textContent=`Nenhuma linha disponível para importação. ${preview.errors.slice(0,2).join(' ')}`;return;}
+    const summary=`Pré-visualização da importação:\n${preview.totalRows} linha(s) analisada(s)\n${preview.items.length} válida(s)\n${preview.duplicates.length} duplicada(s) ignorada(s)\n${preview.errors.length} linha(s) com erro\n\n${preview.errors.slice(0,3).join('\n')}`;
+    if(confirm(`${summary}\n\nSalvar backup e importar apenas as linhas válidas?`)){
+      const previous=state;await registrarBackup('Antes da importação CSV');FinTrackState.replaceState(FinTrackServices.entries.addMany(state,preview.items));registrarHistorico('importacao_csv',`${preview.items.length} lançamento(s) importado(s)`,{duplicados:preview.duplicates.length,erros:preview.errors.length});
+      if(!await saveData()){FinTrackState.replaceState(previous);status.textContent='A importação falhou e foi revertida integralmente.';return;}
+      status.textContent=`${preview.items.length} lançamento(s) importado(s). ${preview.duplicates.length} duplicado(s) ignorado(s).`;render();
+    }
   }catch(error){status.textContent='Não foi possível ler o CSV. Use separador ponto e vírgula.';}};
   reader.readAsText(file);
 }
@@ -623,7 +648,7 @@ function criarDadosDemo(){
 
 function carregarDemo(){
   confirmAction('Substituir os dados atuais por três meses de demonstração?', async () => {
-    const anterior=snapshotAtual(); await registrarBackup('Antes da demonstração'); const backups=state._backups||[]; state=criarDadosDemo(); state._backups=backups; state.restauracaoDemo=anterior; state.modoDemo=true;
+    const anterior=snapshotAtual(); await registrarBackup('Antes da demonstração'); const backups=state._backups||[]; FinTrackState.replaceState({...criarDadosDemo(),_backups:backups,restauracaoDemo:anterior,modoDemo:true});
     await saveData();
     currentView='home';
     render();
@@ -634,7 +659,7 @@ function apagarDemo(){
   const quantidade=state.lancamentos.filter(l=>String(l.id).startsWith('demo-')).length;
   if(!quantidade) return;
   confirmAction(`Apagar ${quantidade} lançamento(s) da demonstração? Seus lançamentos reais serão preservados.`, async () => {
-    state.lancamentos=state.lancamentos.filter(l=>!String(l.id).startsWith('demo-')); state.modoDemo=false;
+    FinTrackState.transaction(current=>({...current,lancamentos:current.lancamentos.filter(item=>!String(item.id).startsWith('demo-')),modoDemo:false}));
     await saveData();
     render();
   }, 'Apagar demonstração');
@@ -642,12 +667,12 @@ function apagarDemo(){
 
 function restaurarDadosAnteriores(){
   if(!state.restauracaoDemo) return;
-  confirmAction('Restaurar os dados salvos antes da demonstração?', async()=>{const backups=state._backups||[];state=normalizeData(state.restauracaoDemo);state._backups=backups;state.modoDemo=false;await saveData();render();},'Restaurar dados');
+  confirmAction('Restaurar os dados salvos antes da demonstração?', async()=>{const backups=state._backups||[],restored=normalizeData(state.restauracaoDemo);FinTrackState.replaceState({...restored,_backups:backups,modoDemo:false});await saveData();render();},'Restaurar dados');
 }
 function restaurarBackup(index){
   const b=(state._backups||[])[index]; if(!b) return;
   if(confirm(`Restaurar a versão de ${new Date(b.criadoEm).toLocaleString('pt-BR')} com ${b.registros} registro(s)? Os dados atuais serão salvos antes da substituição.`)){
-    registrarBackup('Antes da restauração').then(async()=>{const backups=state._backups||[];state=normalizeData(b.dados);state._backups=backups;await saveData();render();});
+    registrarBackup('Antes da restauração').then(async()=>{const backups=state._backups||[],restored=normalizeData(b.dados);FinTrackState.replaceState({...restored,_backups:backups});await saveData();render();});
   }
 }
 

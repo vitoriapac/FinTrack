@@ -7,7 +7,7 @@
         const credor=document.getElementById('dv-credor').value.trim(),saldo=toCents(document.getElementById('dv-saldo').value),proximo=document.getElementById('dv-vencimento').value,error=document.getElementById('dv-error');
         if(!credor||saldo<=0||!proximo){error.textContent='Preencha credor, saldo e vencimento.';return;}
         const payload={id:debt?.id||uid('divida'),credor,saldo,juros:Number(document.getElementById('dv-juros').value)||0,parcelasRestantes:Number(document.getElementById('dv-parcelas').value)||0,proximoVencimento:proximo,prioridade:document.getElementById('dv-prioridade').value};
-        if(debt){const index=state.dividas.findIndex(item=>item.id===debt.id);state.dividas[index]=payload;}else state.dividas.push(payload);
+        FinTrackState.replaceState(FinTrackServices.entities.upsert(state,'dividas',payload));
         registrarHistorico(debt?'edicao_divida':'criacao_divida',`${debt?'Dívida editada':'Dívida criada'}: ${credor}`);await saveData();closeModal();render();
       };
     });

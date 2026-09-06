@@ -28,7 +28,7 @@ function attachViewHandlers(){
       return;
     }
     const serie=state.lancamentos.filter(x=>x.serieId && x.serieId===lanc?.serieId);
-    if(serie.length>1) lanc._editarSerie=confirm('Este lançamento faz parte de uma série. OK edita toda a série; Cancelar edita somente este item.');
+    if(serie.length>1) lanc={...lanc,_editarSerie:confirm('Este lançamento faz parte de uma série. OK edita toda a série; Cancelar edita somente este item.')};
     FinTrackFormLayer.open('lancamento',lanc);
   });
   main.querySelectorAll('[data-action="del-lanc"]').forEach(b => b.onclick = () => {
@@ -49,13 +49,10 @@ function attachViewHandlers(){
         modo=confirm(`Este lançamento faz parte de uma série com ${linked.length} itens. Clique em OK para excluir toda a série ou em Cancelar para excluir somente este item.`)?'serie':'item';
       }
     }
-    const alvo=modo==='serie' ? linked : modo==='futuro' ? linked.filter(l=>l.data>=lanc.data) : [lanc];
     confirmAction(modo==='serie' ? 'Mover toda a série para a lixeira?' : modo==='futuro' ? 'Mover esta e as próximas ocorrências para a lixeira?' : 'Mover este lançamento para a lixeira?', async () => {
-      const ids=new Set(alvo.map(l=>l.id));
-      const removidos=state.lancamentos.filter(l=>ids.has(l.id));
-      state.lixeira.push(...removidos.map(l=>({...l,excluidoEm:new Date().toISOString()})));
-      state.lancamentos = state.lancamentos.filter(l => !ids.has(l.id));
-      state.historico.push({id:uid('hist'),acao:'exclusao',data:todayLocal(),descricao:`${removidos.length} lançamento(s) movido(s) para a lixeira`});
+      const result=FinTrackServices.entries.trash(state,lanc.id,modo);
+      FinTrackState.replaceState(result.state);
+      registrarHistorico('exclusao',`${result.items.length} lançamento(s) movido(s) para a lixeira`,{lancamentoIds:result.items.map(item=>item.id),operacaoId:lanc.operacaoId||null,serieId:lanc.serieId||null});
       await saveData();
       render();
     });
@@ -64,10 +61,9 @@ function attachViewHandlers(){
   main.querySelectorAll('[data-action="toggle-status"]').forEach(b => b.onclick = async () => {
     const lanc = state.lancamentos.find(l => l.id === b.dataset.id);
     if(impedirAlteracaoMes(lanc?.data)) return;
-    const novoStatus=lanc.status === 'Pago' ? 'Pendente' : 'Pago';
-    if(lanc.tipoOperacao==='transferencia' && lanc.operacaoId) state.lancamentos.filter(l=>l.operacaoId===lanc.operacaoId).forEach(l=>l.status=novoStatus);
-    else lanc.status=novoStatus;
-    registrarHistorico('alteracao_status',`Status alterado para ${novoStatus}: ${lanc.descricao}`,{lancamentoId:lanc.id});
+    const result=FinTrackServices.entries.toggleStatus(state,lanc.id);
+    FinTrackState.replaceState(result.state);
+    registrarHistorico('alteracao_status',`Status alterado para ${result.status}: ${lanc.descricao}`,{lancamentoIds:result.items.map(item=>item.id),operacaoId:lanc.operacaoId||null});
     await saveData();
     render();
   });
@@ -84,7 +80,7 @@ function attachViewHandlers(){
       return;
     }
     confirmAction('Excluir esta categoria?', async () => {
-      state.categorias = state.categorias.filter(c => c.id !== b.dataset.id);
+      FinTrackState.replaceState(FinTrackServices.entities.remove(state,'categorias',b.dataset.id));
       await saveData();
       render();
     });
@@ -100,7 +96,7 @@ function attachViewHandlers(){
       return;
     }
     confirmAction('Excluir esta conta?', async () => {
-      state.contas = state.contas.filter(c => c.id !== b.dataset.id);
+      FinTrackState.replaceState(FinTrackServices.entities.remove(state,'contas',b.dataset.id));
       await saveData();
       render();
     });
@@ -119,11 +115,11 @@ function attachViewHandlers(){
   const btnApagarDemo=document.getElementById('btn-apagar-demo');
   if(btnApagarDemo) btnApagarDemo.onclick=apagarDemo;
   const btnDesfazer=document.getElementById('btn-desfazer-exclusao');
-  if(btnDesfazer) btnDesfazer.onclick=async()=>{const item=state.lixeira.pop();if(item){delete item.excluidoEm;state.lancamentos.push(item);await saveData();render();}};
+  if(btnDesfazer) btnDesfazer.onclick=async()=>{const result=FinTrackServices.entries.restoreLast(state);if(result.item){FinTrackState.replaceState(result.state);registrarHistorico('restauracao_lixeira',`Lançamento restaurado: ${result.item.descricao}`,{lancamentoId:result.item.id});await saveData();render();}};
   const btnRestaurarDemo=document.getElementById('btn-restaurar-demo');
   if(btnRestaurarDemo) btnRestaurarDemo.onclick=restaurarDadosAnteriores;
   main.querySelectorAll('[data-action="restore-backup"]').forEach(b=>b.onclick=()=>restaurarBackup(Number(b.dataset.index)));
-  const salvarPlan=document.getElementById('btn-salvar-planejamento'); if(salvarPlan) salvarPlan.onclick=async()=>{const key=mesAtualKey();if(impedirAlteracaoMes(`${key}-01`))return;const p=state.planejamentos[key]||{};p.receita=toCents(document.getElementById('pl-receita').value);p.investimento=toCents(document.getElementById('pl-investimento').value);p.orcamentos=Object.fromEntries(state.categorias.map(c=>[c.id,toCents(document.getElementById('pl-cat-'+c.id).value)]));state.planejamentos[key]=p;await saveData();render();};
+  const salvarPlan=document.getElementById('btn-salvar-planejamento'); if(salvarPlan) salvarPlan.onclick=async()=>{const key=mesAtualKey();if(impedirAlteracaoMes(`${key}-01`))return;const planning={receita:toCents(document.getElementById('pl-receita').value),investimento:toCents(document.getElementById('pl-investimento').value),orcamentos:Object.fromEntries(state.categorias.map(c=>[c.id,toCents(document.getElementById('pl-cat-'+c.id).value)]))};FinTrackState.transaction(current=>({...current,planejamentos:{...current.planejamentos,[key]:planning}}));registrarHistorico('planejamento_salvo',`Planejamento salvo: ${key}`);await saveData();render();};
   const fechar=document.getElementById('btn-fechar-mes'); if(fechar) fechar.onclick=fecharMes;
   const reabrir=document.getElementById('btn-reabrir-mes'); if(reabrir) reabrir.onclick=reabrirMes;
   const novaMetaBtn=document.getElementById('btn-nova-meta'); if(novaMetaBtn) novaMetaBtn.onclick=()=>FinTrackFormLayer.open('meta');

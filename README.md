@@ -10,8 +10,9 @@ Aplicação web local para controle financeiro pessoal, construída com HTML, CS
 - Faturas de cartão e registro de pagamentos
 - Planejamento mensal e fechamento com snapshot
 - Metas financeiras
-- Backups JSON e exportação/importação CSV
-- Armazenamento local via `window.storage`
+- Backups JSON e importação CSV com pré-validação e deduplicação
+- Armazenamento local via `window.storage`, com fallback para `localStorage`
+- Reparo automático de relacionamentos e quarentena auditável
 
 ## Estrutura
 
@@ -19,6 +20,7 @@ Aplicação web local para controle financeiro pessoal, construída com HTML, CS
 index.html              shell da aplicação e compatibilidade do ambiente
 js/core/                schema, migrations, normalização, validação e fechamento
 js/financial-core.js    regras financeiras centralizadas
+js/services/            operações imutáveis de lançamentos, pagamentos e cadastros
 js/views/               renderização das telas
 js/forms/               formulários e operações de domínio
 js/ui/                  navegação, modais, filtros e handlers
@@ -27,7 +29,7 @@ tests/                  testes unitários, regressão, migração e contratos de
 
 ## Execução
 
-Abra `index.html` em um ambiente que forneça `window.storage`. Os dados são locais e não são enviados para um servidor pelo aplicativo.
+Abra `index.html` diretamente ou sirva a pasta com um servidor HTTP local. Os dados são locais e não são enviados para um servidor pelo aplicativo.
 
 ## Testes
 
@@ -37,15 +39,15 @@ Requer Node.js 18 ou superior:
 npm test
 ```
 
-A suíte cobre cálculos financeiros, persistência, migrações, datas de cartão, recorrências, transferências, fechamentos e sintaxe dos módulos.
+A suíte cobre cálculos financeiros, persistência, migrações v1–v5, importação, deduplicação, quarentena, relacionamentos, transferências, fechamentos e sintaxe dos módulos.
 
 ## Armazenamento e privacidade
 
-O FinTrack foi projetado para uso local. Backups podem ser exportados manualmente em JSON. Antes de importar CSV ou restaurar dados, a aplicação cria um backup versionado quando possível.
+O FinTrack foi projetado para uso local. Backups podem ser exportados manualmente em JSON. A aplicação cria um backup versionado antes de importar, restaurar ou migrar dados. Importações são revertidas se a persistência falhar.
 
 ## Modelo financeiro
 
-Valores monetários persistidos são armazenados como inteiros em centavos. Dados antigos passam por migração para o schema atual antes de serem usados pela aplicação.
+Valores monetários persistidos são armazenados como inteiros em centavos. O schema atual é a versão 5. Dados antigos passam por migração antes do uso; registros inseguros são isolados na quarentena exibida em Cadastro → Auditoria.
 
 ## CI
 
@@ -55,6 +57,5 @@ O GitHub Actions executa `npm test` em pushes para `main` e em pull requests dir
 
 - Migrar progressivamente para ES Modules
 - Extrair o CSS do HTML
-- Consolidar uma camada de estado e services
 - Ampliar testes de browser e acessibilidade
 - Evoluir autenticação e sincronização somente quando houver backend definido

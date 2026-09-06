@@ -24,6 +24,74 @@
     return {state:next,operationId:pair[0].operacaoId,items:pair};
   }
 
+  function addEntry(data,entry){
+    const next=clone(data);
+    next.lancamentos=next.lancamentos||[];
+    next.lancamentos.push(clone(entry));
+    return next;
+  }
+
+  function addEntries(data,entries){
+    const next=clone(data);
+    next.lancamentos=next.lancamentos||[];
+    next.lancamentos.push(...clone(entries));
+    return next;
+  }
+
+  function replaceEntry(data,entry){
+    const next=clone(data),index=(next.lancamentos||[]).findIndex(item=>item.id===entry.id);
+    if(index<0) throw new Error('Lançamento não encontrado.');
+    next.lancamentos[index]=clone(entry);
+    return next;
+  }
+
+  function trashEntries(data,entryId,mode='item',deletedAt=new Date().toISOString()){
+    const next=clone(data),entry=(next.lancamentos||[]).find(item=>item.id===entryId);
+    if(!entry) throw new Error('Lançamento não encontrado.');
+    let targets=[entry];
+    if(entry.tipoOperacao==='transferencia'&&entry.operacaoId) targets=next.lancamentos.filter(item=>item.operacaoId===entry.operacaoId);
+    else if(mode==='serie'&&entry.serieId) targets=next.lancamentos.filter(item=>item.serieId===entry.serieId);
+    else if(mode==='futuro'&&entry.serieId) targets=next.lancamentos.filter(item=>item.serieId===entry.serieId&&item.data>=entry.data);
+    const ids=new Set(targets.map(item=>item.id));
+    next.lixeira=next.lixeira||[];
+    next.lixeira.push(...targets.map(item=>({...item,excluidoEm:deletedAt})));
+    next.lancamentos=next.lancamentos.filter(item=>!ids.has(item.id));
+    return {state:next,items:targets};
+  }
+
+  function toggleEntryStatus(data,entryId){
+    const next=clone(data),entry=next.lancamentos.find(item=>item.id===entryId);
+    if(!entry) throw new Error('Lançamento não encontrado.');
+    const status=entry.status==='Pago'?'Pendente':'Pago';
+    const targets=entry.tipoOperacao==='transferencia'&&entry.operacaoId?next.lancamentos.filter(item=>item.operacaoId===entry.operacaoId):[entry];
+    targets.forEach(item=>{item.status=status;});
+    return {state:next,status,items:targets};
+  }
+
+  function restoreLastTrashed(data){
+    const next=clone(data),item=(next.lixeira||[]).pop();
+    if(!item) return {state:next,item:null};
+    delete item.excluidoEm;
+    next.lancamentos=next.lancamentos||[];
+    next.lancamentos.push(item);
+    return {state:next,item};
+  }
+
+  function upsertEntity(data,collection,payload){
+    const next=clone(data),items=next[collection];
+    if(!Array.isArray(items)) throw new Error(`Coleção inválida: ${collection}`);
+    const index=items.findIndex(item=>item.id===payload.id);
+    if(index>=0) items[index]=clone(payload); else items.push(clone(payload));
+    return next;
+  }
+
+  function removeEntity(data,collection,id){
+    const next=clone(data),items=next[collection];
+    if(!Array.isArray(items)) throw new Error(`Coleção inválida: ${collection}`);
+    next[collection]=items.filter(item=>item.id!==id);
+    return next;
+  }
+
   function expandInstallments(payload,options={}){
     const total=options.totalCents==null?cents(payload.valor):cents(options.totalCents);
     const count=Math.max(2,Math.min(60,Number(options.count)||2));
@@ -49,13 +117,33 @@
     debt.saldo=Math.max(0,cents(debt.saldo)-amount);
     debt.parcelasRestantes=Math.max(0,(Number(debt.parcelasRestantes)||0)-1);
     next.pagamentosDividas=next.pagamentosDividas||[];
-    next.pagamentosDividas.push({id:input.id||nextId('pagamento-divida',input.idFactory),dividaId:debt.id,valor:amount,data:input.data});
+    next.pagamentosDividas.push({id:input.id||nextId('pagamento-divida',input.idFactory),dividaId:debt.id,valor:amount,data:input.data,saldoAnterior:cents(data.dividas.find(item=>item.id===input.dividaId).saldo),parcelasRestantesAntes:Number(data.dividas.find(item=>item.id===input.dividaId).parcelasRestantes)||0});
     return next;
+  }
+
+  function reverseCardPayment(data,paymentId){
+    const next=clone(data),payment=(next.pagamentosCartao||[]).find(item=>item.id===paymentId);
+    if(!payment) throw new Error('Pagamento de cartão não encontrado.');
+    next.pagamentosCartao=next.pagamentosCartao.filter(item=>item.id!==paymentId);
+    return {state:next,payment};
+  }
+
+  function reverseDebtPayment(data,paymentId){
+    const next=clone(data),payment=(next.pagamentosDividas||[]).find(item=>item.id===paymentId);
+    if(!payment) throw new Error('Pagamento de dívida não encontrado.');
+    const debt=next.dividas.find(item=>item.id===payment.dividaId);
+    if(!debt) throw new Error('Dívida vinculada não encontrada.');
+    debt.saldo=payment.saldoAnterior==null?cents(debt.saldo)+cents(payment.valor):cents(payment.saldoAnterior);
+    debt.parcelasRestantes=payment.parcelasRestantesAntes==null?(Number(debt.parcelasRestantes)||0)+1:Number(payment.parcelasRestantesAntes);
+    next.pagamentosDividas=next.pagamentosDividas.filter(item=>item.id!==paymentId);
+    return {state:next,payment,debt};
   }
 
   window.FinTrackServices={
     transfers:{pair:transferPair,upsert:upsertTransfer},
+    entries:{add:addEntry,addMany:addEntries,replace:replaceEntry,trash:trashEntries,toggleStatus:toggleEntryStatus,restoreLast:restoreLastTrashed},
+    entities:{upsert:upsertEntity,remove:removeEntity},
     installments:{expand:expandInstallments},
-    payments:{card:registerCardPayment,debt:registerDebtPayment},
+    payments:{card:registerCardPayment,debt:registerDebtPayment,reverseCard:reverseCardPayment,reverseDebt:reverseDebtPayment},
   };
 })();

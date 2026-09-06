@@ -22,8 +22,24 @@ assert.equal(installments.map(item=>item.parcelaAtual).join(','),'1,2,3');
 
 const paidCard=services.payments.card(state,{id:'payment',cartaoId:'card',invoiceKey:'2026-09',valor:500,outstanding:1000,data:'2026-09-10'});
 assert.equal(paidCard.pagamentosCartao.length,1);
+assert.equal(services.payments.reverseCard(paidCard,'payment').state.pagamentosCartao.length,0);
 const paidDebt=services.payments.debt(state,{id:'debt-payment',dividaId:'debt',valor:2500,data:'2026-09-10'});
 assert.equal(paidDebt.dividas[0].saldo,7500);
 assert.equal(paidDebt.pagamentosDividas.length,1);
+const reversedDebt=services.payments.reverseDebt(paidDebt,'debt-payment').state;
+assert.equal(reversedDebt.dividas[0].saldo,10000);
+assert.equal(reversedDebt.dividas[0].parcelasRestantes,4);
 assert.equal(state.dividas[0].saldo,10000,'serviços não devem mutar o estado original');
+
+const transferTrash=services.entries.trash(transfer.state,transfer.items[0].id,'item','2026-09-12T00:00:00.000Z');
+assert.equal(transferTrash.items.length,2,'transferência deve ser excluída de forma atômica');
+assert.equal(transferTrash.state.lancamentos.length,0);
+assert.equal(transferTrash.state.lixeira.length,2);
+const toggled=services.entries.toggleStatus(transfer.state,transfer.items[0].id);
+assert.equal(toggled.items.length,2);
+assert.equal(toggled.items[0].status,'Pendente');
+
+const entityState=services.entities.upsert(state,'dividas',{id:'new-debt',saldo:5000});
+assert.equal(entityState.dividas.length,2);
+assert.equal(services.entities.remove(entityState,'dividas','new-debt').dividas.length,1);
 console.log('services tests: OK');
