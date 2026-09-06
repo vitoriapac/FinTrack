@@ -11,6 +11,8 @@ const requiredScripts = [
   'js/views/dividas.js',
   'js/views/auditoria.js',
   'js/views/historico.js',
+  'js/reporting/monthly-pdf.js',
+  'js/ui/productivity.js',
 ];
 for (const script of requiredScripts) assert.ok(html.includes(`src="${script}"`), `script ausente: ${script}`);
 assert.ok(html.indexOf('js/financial-core.js') < html.indexOf('js/ui/screen-events.js'));
@@ -55,11 +57,16 @@ assert.ok(fs.readFileSync('js/views/home.js','utf8').includes('Por quê?'));
 assert.ok(fs.readFileSync('js/views/planejamento.js','utf8').includes('Orçamento operacional'));
 assert.ok(fs.readFileSync('js/views/planejamento.js','utf8').includes('Acompanhamento'));
 assert.ok(fs.readFileSync('js/views/historico.js','utf8').includes('lancamentosDetalhados'));
+assert.ok(fs.readFileSync('js/views/historico.js','utf8').includes('data-action="export-closing-pdf"'));
+assert.ok(fs.readFileSync('js/views/lancamentos.js','utf8').includes('transaction-mobile-list'));
+assert.ok(fs.readFileSync('js/ui/productivity.js','utf8').includes("event.key.toLowerCase()==='k'"));
 const cadastro=fs.readFileSync('js/views/cadastro.js','utf8');
 assert.ok(cadastro.includes('Categorias'));
 assert.ok(cadastro.includes('Contas'));
 for(const removed of ['Backup e demonstração','Auditoria','Cartões','Dívidas']) assert.ok(!cadastro.includes(removed),`${removed} ainda aparece no Cadastro`);
 assert.ok(html.includes('href="css/app.css"'));
+assert.ok(html.includes('href="css/tokens.css"'));
+assert.ok(html.includes('href="css/mobile.css"'));
 assert.ok(html.includes('href="#main"'));
 assert.ok(!html.includes('legacy-adapter'));
 assert.ok(!html.includes('<style>'));

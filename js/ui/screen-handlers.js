@@ -5,6 +5,7 @@ function attachViewHandlers(){
 
   main.querySelectorAll('[data-action="go-lancamentos"]').forEach(b => b.onclick = () => setView('lancamentos'));
   main.querySelectorAll('[data-action="select-closing"]').forEach(button=>button.onclick=()=>{historicoMes=button.dataset.key;render();});
+  main.querySelectorAll('[data-action="export-closing-pdf"]').forEach(button=>button.onclick=()=>FinTrackPdfReport.open(button.dataset.key,state.fechamentos[button.dataset.key]));
   const btnHomeNovo = document.getElementById('btn-home-novo');
   if(btnHomeNovo) btnHomeNovo.onclick = () => FinTrackForms.open('lancamento',null);
   const demoRestore=document.getElementById('btn-demo-restaurar');

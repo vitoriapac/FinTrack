@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const vm=require('node:vm');
+const window={};
+vm.runInNewContext(fs.readFileSync('js/reporting/monthly-pdf.js','utf8'),{window});
+const closing={fechadoEm:'2026-08-31T20:00:00.000Z',observacao:'Fechamento <validado>',snapshot:{receitas:500000,despesas:320000,investimentos:50000,resultado:130000,planejamento:{receita:480000,investimento:40000},orcamentoDetalhado:[{categoriaNome:'Mercado',orcado:100000,realizado:85000,disponivel:15000}],contas:[{nome:'Conta principal',saldo:130000}],lancamentosDetalhados:[{data:'2026-08-10',descricao:'Salário',categoriaNome:'Renda',contaNome:'Conta principal',status:'Pago',valor:500000}]}};
+const html=window.FinTrackPdfReport.buildHtml('2026-08',closing);
+assert.ok(html.includes('Relatório mensal FinTrack'));
+assert.ok(html.includes('Conta principal'));
+assert.ok(html.includes('Fechamento &lt;validado&gt;'));
+assert.ok(html.includes('snapshot imutável'));
+assert.throws(()=>window.FinTrackPdfReport.buildHtml('2026-08',{}),/snapshot mensal fechado/);
+console.log('reporting tests: OK');

@@ -1,18 +1,3 @@
-  :root{
-    --ink: #1C2620;
-    --forest: #24402F;
-    --forest-dark: #182B20;
-    --paper: #F0ECE2;
-    --paper-alt: #E8E2D2;
-    --card: #FBF9F3;
-    --line: #D9D2BF;
-    --line-soft: #E5DFCE;
-    --income: #4B7A57;
-    --expense: #9C4A2E;
-    --gold: #B9862F;
-    --muted: #766F5E;
-    --radius: 3px;
-  }
   *{box-sizing:border-box;}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:'IBM Plex Sans',sans-serif;font-size:15px;line-height:1.5;}
   .skip-link{position:fixed;top:8px;left:8px;z-index:100;background:var(--card);color:var(--forest);padding:10px 14px;border:2px solid var(--gold);transform:translateY(-150%);}
@@ -152,6 +137,13 @@
   .planning-fields h3{font-size:15px;margin:8px 0 12px;}
   .budget-section{overflow-x:auto;}
   .budget-section table{min-width:820px;}
+  .search-results{display:grid;gap:6px;max-height:340px;overflow-y:auto;}
+  .search-results p{color:var(--muted);font-size:13px;text-align:center;padding:18px;}
+  .search-result{display:flex;justify-content:space-between;gap:12px;text-align:left;padding:10px 12px;border:1px solid var(--line-soft);background:var(--card);cursor:pointer;color:var(--ink);}
+  .search-result:hover{background:var(--paper-alt);}
+  .search-result span{color:var(--muted);font-size:12px;}
+  .transaction-mobile-list{display:none;}
+  .show-more{padding:14px 20px;text-align:center;}
 
   .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11.5px;font-weight:500;}
   .badge-paid{background:rgba(75,122,87,0.15);color:var(--income);}
