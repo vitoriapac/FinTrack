@@ -47,6 +47,7 @@ let currentView = 'home';
 let lancFiltro = { mes: new Date().getMonth() + 1, ano: new Date().getFullYear(), categoriaId: 'todas', busca: '' };
 let balancoAno = new Date().getFullYear();
 let cadastroTab = 'categorias';
+let historicoMes = null;
 let lancMostrarTodos = false;
 
 /* ---------- Persistência ---------- */
@@ -223,7 +224,7 @@ function infoModal(title, message){ return FinTrackModal.info(title,message); }
 function render(){
   const main = document.getElementById('main');
   const demoBanner=state?.modoDemo?'<div class="demo-banner" role="status" aria-live="polite"><strong>MODO DEMO</strong><span>Nenhuma alteração neste modo representa seus dados pessoais.</span><button class="btn btn-ghost" id="btn-demo-restaurar">Restaurar meus dados</button></div>':'';
-  main.innerHTML = demoBanner + FinTrackViews.render(currentView);
+  main.innerHTML = demoBanner + FinTrackViews.render(currentView) + renderAppFooter();
   attachViewHandlers();
 }
 
@@ -300,7 +301,7 @@ function renderBarChart(receitas, despesas){
 
 function mesAtualKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
 function fecharMes(){const key=mesAtualKey();if(mesFechado(`${key}-01`)){infoModal('Mês já fechado','Este mês já está fechado e suas alterações estão protegidas.');return;}const obs=prompt('Observação do fechamento (opcional):','');if(obs!==null){const closing=FinTrackClosing.createSnapshot(state,key,{observacao:obs,fechadoEm:new Date().toISOString()});FinTrackState.transaction(current=>({...current,fechamentos:{...current.fechamentos,[key]:closing}}));registrarHistorico('fechamento_mes',`Mês ${key} fechado`,{snapshot:closing.snapshot});saveData().then(render);}}
-function reabrirMes(){const key=mesAtualKey();if(!mesFechado(`${key}-01`))return;if(confirm('Reabrir o mês atual? O snapshot histórico será preservado.')){const closing=FinTrackClosing.reopen(state.fechamentos[key]);FinTrackState.transaction(current=>({...current,fechamentos:{...current.fechamentos,[key]:closing}}));registrarHistorico('reabertura_mes',`Mês ${key} reaberto`);saveData().then(render);}}
+function reabrirMes(){const key=mesAtualKey();if(!mesFechado(`${key}-01`))return;const motivo=prompt('Informe o motivo da reabertura:','Inclusão de lançamento atrasado.');if(motivo?.trim()){const closing=FinTrackClosing.reopen(state.fechamentos[key],{motivo:motivo.trim(),usuario:state.usuario?.nome||'local'});FinTrackState.transaction(current=>({...current,fechamentos:{...current.fechamentos,[key]:closing}}));registrarHistorico('reabertura_mes',`Mês ${key} reaberto`,{motivo:motivo.trim()});saveData().then(render);}}
 
 /* ================= CADASTRO ================= */
 
@@ -371,6 +372,10 @@ function renderBackupTab(){
       </div>
     </div>
   `;
+}
+
+function renderAppFooter(){
+  return `<footer class="app-footer"><details class="backup-panel"><summary>Backup e recuperação</summary><div class="backup-panel-body">${renderBackupTab()}</div></details><p>FinTrack · Seus dados permanecem neste dispositivo.</p></footer>`;
 }
 
 function baixarArquivo(nome, conteudo, tipo){

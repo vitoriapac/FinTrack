@@ -10,6 +10,9 @@ Aplicação web local para controle financeiro pessoal, construída com HTML, CS
 - Faturas com pagamentos parciais vinculados às contas
 - Dívidas com separação entre juros e amortização
 - Planejamento mensal e fechamento com snapshot
+- Histórico permanente, comparação mensal e saldos por conta no fechamento
+- Orçamento operacional com realizado, pendente e disponível
+- Recomendações diárias explicáveis
 - Metas financeiras
 - Backups JSON e importação CSV com pré-validação e deduplicação
 - Armazenamento local via `window.storage`, com fallback para `localStorage`

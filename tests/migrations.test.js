@@ -41,5 +41,11 @@ assert.ok(context.window.FinTrackValidation.validateData(brokenTransfer).warning
 const closed=context.window.FinTrackClosing.createSnapshot(normalized,'2026-01',{observacao:'Fechamento de teste',fechadoEm:'2026-02-01T12:00:00.000Z'});
 assert.equal(closed.status,'fechado');
 assert.equal(closed.snapshot.receitas,500000);
-assert.equal(context.window.FinTrackClosing.reopen(closed,'2026-02-02T12:00:00.000Z').status,'aberto');
+assert.equal(closed.snapshot.versao,2);
+assert.ok(Array.isArray(closed.snapshot.contas));
+assert.ok(Array.isArray(closed.snapshot.lancamentosDetalhados));
+assert.equal(closed.snapshot.planejamento.receita,0);
+const reopened=context.window.FinTrackClosing.reopen(closed,{quando:'2026-02-02T12:00:00.000Z',motivo:'Ajuste auditável',usuario:'Teste'});
+assert.equal(reopened.status,'aberto');
+assert.equal(reopened.reaberturas[0].motivo,'Ajuste auditável');
 console.log('migration tests: OK');

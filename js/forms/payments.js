@@ -5,8 +5,7 @@
       document.getElementById('pay-card-cancel').onclick=closeModal;
       document.getElementById('pay-card-save').onclick=async()=>{
         const value=toCents(document.getElementById('pay-card-value').value),accountId=document.getElementById('pay-card-account').value,error=document.getElementById('pay-card-error');
-        if(!accountId){error.textContent='Selecione a conta usada no pagamento.';return;}
-        if(value<=0||value>invoice.outstanding){error.textContent='Informe um valor maior que zero e até o saldo da fatura.';return;}
+        const fieldErrors={};if(!accountId)fieldErrors['pay-card-account']='Selecione a conta usada no pagamento.';if(value<=0||value>invoice.outstanding)fieldErrors['pay-card-value']='Informe um valor maior que zero e até o saldo da fatura.';if(!FinTrackFormValidation.show(fieldErrors,'pay-card-error'))return;
         try{FinTrackState.replaceState(FinTrackServices.payments.card(state,{id:uid('pagamento-cartao'),cartaoId:card.id,invoiceKey:invoice.key,contaId:accountId,valor:value,outstanding:invoice.outstanding,data:document.getElementById('pay-card-date').value,idFactory:uid}));}catch(paymentError){error.textContent=paymentError.message;return;}
         registrarHistorico('pagamento_fatura',`Pagamento de fatura: ${card.nome}`,{valor:value,invoiceKey:invoice.key});await saveData();closeModal();render();
       };
@@ -19,8 +18,7 @@
       document.getElementById('pay-debt-cancel').onclick=closeModal;
       document.getElementById('pay-debt-save').onclick=async()=>{
         const value=toCents(document.getElementById('pay-debt-value').value),accountId=document.getElementById('pay-debt-account').value,error=document.getElementById('pay-debt-error');
-        if(!accountId){error.textContent='Selecione a conta usada no pagamento.';return;}
-        if(value<=0){error.textContent='Informe um valor maior que zero.';return;}
+        const fieldErrors={};if(!accountId)fieldErrors['pay-debt-account']='Selecione a conta usada no pagamento.';if(value<=0)fieldErrors['pay-debt-value']='Informe um valor maior que zero.';if(!FinTrackFormValidation.show(fieldErrors,'pay-debt-error'))return;
         try{FinTrackState.replaceState(FinTrackServices.payments.debt(state,{id:uid('pagamento-divida'),dividaId:debt.id,contaId:accountId,valor:value,data:document.getElementById('pay-debt-date').value,idFactory:uid}));}catch(paymentError){error.textContent=paymentError.message;return;}
         registrarHistorico('pagamento_divida',`Pagamento registrado: ${debt.credor}`,{valor:value,dividaId:debt.id});await saveData();closeModal();render();
       };

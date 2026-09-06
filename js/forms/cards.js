@@ -5,7 +5,7 @@
       document.getElementById('cc-cancel').onclick=closeModal;
       document.getElementById('cc-save').onclick=async()=>{
         const nome=document.getElementById('cc-nome').value.trim(),limite=toCents(document.getElementById('cc-limite').value),error=document.getElementById('cc-error');
-        if(!nome||limite<0){error.textContent='Informe nome e limite válidos.';return;}
+        const fieldErrors={};if(!nome)fieldErrors['cc-nome']='Informe o nome do cartão.';if(limite<0)fieldErrors['cc-limite']='O limite não pode ser negativo.';if(!FinTrackFormValidation.show(fieldErrors,'cc-error'))return;
         const payload={id:card?.id||uid('cartao'),nome,bandeira:document.getElementById('cc-bandeira').value.trim(),limite,fechamento:Number(document.getElementById('cc-fechamento').value)||null,vencimento:Number(document.getElementById('cc-vencimento').value)||null,ativo:card?.ativo!==false};
         FinTrackState.replaceState(FinTrackServices.entities.upsert(state,'cartoes',payload));
         registrarHistorico(card?'edicao_cartao':'criacao_cartao',`${card?'Cartão editado':'Cartão criado'}: ${nome}`);await saveData();closeModal();render();

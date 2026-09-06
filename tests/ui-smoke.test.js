@@ -3,14 +3,18 @@ const fs=require('node:fs');
 
 const html=fs.readFileSync('index.html','utf8');
 const app=fs.readFileSync('js/app.js','utf8');
-const views=['home','lancamentos','vencimentos','balanco','planejamento','metas','cadastro'];
+const views=['home','lancamentos','vencimentos','balanco','historico','planejamento','metas','cartoes','dividas','auditoria','cadastro'];
 const viewFiles={
   home:'js/views/home.js',
   lancamentos:'js/views/lancamentos.js',
   vencimentos:'js/views/vencimentos.js',
   balanco:'js/views/balanco.js',
+  historico:'js/views/historico.js',
   planejamento:'js/views/planejamento.js',
   metas:'js/views/metas.js',
+  cartoes:'js/views/cartoes.js',
+  dividas:'js/views/dividas.js',
+  auditoria:'js/views/auditoria.js',
   cadastro:'js/views/cadastro.js',
 };
 
