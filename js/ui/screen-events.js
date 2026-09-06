@@ -9,6 +9,10 @@
     if(novoCartao) novoCartao.onclick=()=>FinTrackFormLayer.open('cartao');
     const novaDivida=document.getElementById('btn-nova-divida');
     if(novaDivida) novaDivida.onclick=()=>FinTrackFormLayer.open('divida');
+    main.querySelectorAll('[data-action="edit-cartao"]').forEach(button=>button.onclick=()=>FinTrackFormLayer.open('cartao',state.cartoes.find(item=>item.id===button.dataset.id)));
+    main.querySelectorAll('[data-action="edit-divida"]').forEach(button=>button.onclick=()=>FinTrackFormLayer.open('divida',state.dividas.find(item=>item.id===button.dataset.id)));
+    main.querySelectorAll('[data-action="pay-card"]').forEach(button=>button.onclick=()=>{const card=state.cartoes.find(item=>item.id===button.dataset.id);if(card) openCardPaymentForm(card,FinTrackCore.cardInvoice(state,card,new Date()));});
+    main.querySelectorAll('[data-action="pay-divida"]').forEach(button=>button.onclick=()=>{const debt=state.dividas.find(item=>item.id===button.dataset.id);if(debt) openDebtPaymentForm(debt);});
     main.querySelectorAll('[data-action="del-cartao"]').forEach(button=>button.onclick=()=>confirmAction('Excluir este cartão?',async()=>{
       const card=state.cartoes.find(item=>item.id===button.dataset.id);
       state.cartoes=state.cartoes.filter(item=>item.id!==button.dataset.id);

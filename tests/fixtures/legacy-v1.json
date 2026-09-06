@@ -1,0 +1,8 @@
+{
+  "contas": [{"id":"conta-1","nome":"Carteira","saldoInicial":100.5,"dataSaldoInicial":"2026-01-01"}],
+  "categorias": [{"id":"cat-1","nome":"Mercado","tipo":"Saída","orcado":450}],
+  "lancamentos": [{"id":"lanc-1","tipo":"Despesa","data":"2026-02-28","descricao":"Compra","contaId":"conta-1","categoriaId":"cat-1","valor":25.9,"status":"Pago"}],
+  "cartoes": [{"id":"card-1","nome":"Cartão legado","limite":1200}],
+  "dividas": [{"id":"debt-1","credor":"Banco","saldo":800,"juros":1.2,"parcelasRestantes":8,"proximoVencimento":"2026-03-10"}],
+  "planejamentos": {"2026-02":{"receita":3000,"investimento":300,"orcamentos":{"cat-1":450}}}
+}

@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 4,
+  "__centsVersion": 1,
+  "contas": [{"id":"a","nome":"Conta principal","saldoInicial":100000,"dataSaldoInicial":"2026-01-01"},{"id":"b","nome":"Investimentos","saldoInicial":0,"dataSaldoInicial":"2026-01-01"}],
+  "categorias": [{"id":"r","nome":"Salário","tipo":"Entrada","orcado":0},{"id":"d","nome":"Moradia","tipo":"Saída","orcado":120000},{"id":"cat-investimento","nome":"Investimentos","tipo":"Saída","orcado":0}],
+  "lancamentos":[{"id":"r1","tipo":"Receita","data":"2026-01-05","descricao":"Salário","contaId":"a","categoriaId":"r","valor":500000,"status":"Pago"},{"id":"d1","tipo":"Despesa","data":"2026-01-06","descricao":"Aluguel","contaId":"a","categoriaId":"d","valor":120000,"status":"Pago"},{"id":"i1","tipoOperacao":"investimento","natureza":"investimento","movimentoInvestimento":"aporte","tipo":"Despesa","data":"2026-01-07","descricao":"Aporte","contaId":"a","categoriaId":"cat-investimento","valor":50000,"status":"Pago"}],
+  "series":[],"cartoes":[],"dividas":[],"pagamentosCartao":[],"pagamentosDividas":[],"planejamentos":{},"fechamentos":{}
+}

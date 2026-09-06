@@ -74,6 +74,10 @@ assert.equal(invoice.key, '2026-10');
 assert.equal(invoice.total, 8000);
 assert.equal(invoice.available, 92000);
 assert.equal(invoice.dueDate, '2026-10-20');
+cardData.pagamentosCartao=[{cartaoId:'card',invoiceKey:'2026-10',valor:3000}];
+const paidInvoice=core.cardInvoice(cardData,cardData.cartoes[0],new Date('2026-09-15T12:00:00'));
+assert.equal(paidInvoice.paid,3000);
+assert.equal(paidInvoice.outstanding,5000);
 
 const debtProjection = core.debtProjection({ saldo: 100000, juros: 1, parcelasRestantes: 10 });
 assert.equal(debtProjection.periods, 10);

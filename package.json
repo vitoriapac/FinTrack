@@ -1,0 +1,13 @@
+{
+  "name": "fintrack",
+  "version": "1.6.0",
+  "private": true,
+  "description": "FinTrack — controle financeiro pessoal local",
+  "scripts": {
+    "test": "node tests/financial-core.test.js && node tests/storage.test.js && node tests/registries.test.js && node tests/ui-contracts.test.js && node tests/migrations.test.js && node tests/syntax.test.js",
+    "test:syntax": "node tests/syntax.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

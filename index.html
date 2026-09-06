@@ -155,7 +155,12 @@
 </div>
 <div id="modal-root"></div>
 
+<script src="js/core/schema.js"></script>
+<script src="js/core/migrations.js"></script>
+<script src="js/core/normalize.js"></script>
+<script src="js/core/validate.js"></script>
 <script src="js/financial-core.js"></script>
+<script src="js/core/closing.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/view-registry.js"></script>
 <script src="js/ui/modal.js"></script>
@@ -163,11 +168,13 @@
 <script src="js/ui/navigation.js"></script>
 <script src="js/ui/filters.js"></script>
 <script src="js/ui/screen-events.js"></script>
+<script src="js/ui/screen-handlers.js"></script>
 <script src="js/forms/registry.js"></script>
 <script src="js/forms/legacy-adapter.js"></script>
 <script src="js/forms/goals.js"></script>
 <script src="js/forms/cards.js"></script>
 <script src="js/forms/debts.js"></script>
+<script src="js/forms/payments.js"></script>
 <script src="js/forms/catalog.js"></script>
 <script src="js/forms/transactions.js"></script>
 <script src="js/forms/entry.js"></script>
@@ -234,6 +241,8 @@ let lancMostrarTodos = false;
 async function loadData(){
   try{
     state = normalizeData(await FinTrackStorage.get(STORAGE_KEY));
+    const report=window.FinTrackValidation.validateData(state);
+    if(!report.valid) state=window.FinTrackValidation.repairData(state);
     state._backups=await FinTrackStorage.load(BACKUPS_KEY,[]);
   }catch(e){
     state = JSON.parse(JSON.stringify(DEFAULT_DATA));
@@ -349,7 +358,7 @@ function registrarHistorico(acao, descricao, detalhes={}){
   state.historico.push({id:uid('hist'),acao,data:todayLocal(),descricao,detalhes});
 }
 function chaveMes(iso){ return iso ? iso.slice(0,7) : mesAtualKey(); }
-function mesFechado(iso){ return Boolean(state.fechamentos?.[chaveMes(iso)]); }
+function mesFechado(iso){ return FinTrackClosing.isClosed(state.fechamentos?.[chaveMes(iso)]); }
 function impedirAlteracaoMes(iso){
   if(!mesFechado(iso)) return false;
   infoModal('Mês fechado','Este mês já foi fechado. Reabra ou altere o fechamento antes de modificar lançamentos desse período.');
@@ -417,236 +426,11 @@ function gerarRecomendacoes(mes,ano){
   return recomendacoes;
 }
 
-function legacyRenderHome(){
-  const now = new Date();
-  const mes = now.getMonth() + 1, ano = now.getFullYear();
-  const { receitas, despesas, saldo } = totaisDoMes(mes, ano);
-  const recentes = [...state.lancamentos].sort((a,b) => b.data.localeCompare(a.data)).slice(0,6);
-  const saldoContas = state.contas.reduce((s,c) => s + saldoAtualConta(c), 0);
-  const categoriasComOrcamento = state.categorias.filter(c => c.tipo === 'Saída' && c.orcado > 0);
-  const pendentes = state.lancamentos.filter(l => l.status === 'Pendente' && serieEstaAtiva(l) && naturezaLancamento(l) !== 'transferencia');
-  const vencidos = pendentes.filter(l => (l.dataVencimento || l.data) < todayLocal());
-  const categoriasEstouradas = categoriasComOrcamento.filter(c => gastoPorCategoria(c.id, mes, ano) > c.orcado);
-  const anterior = new Date(ano, mes-2, 1);
-  const totaisAnterior = totaisDoMes(anterior.getMonth()+1, anterior.getFullYear());
-  const variacaoDespesas = totaisAnterior.despesas ? Math.round(((despesas-totaisAnterior.despesas)/totaisAnterior.despesas)*100) : null;
-  const receitasPendentes = pendentes.filter(l=>l.tipo==='Receita').reduce((s,l)=>s+Number(l.valor),0);
-  const despesasPendentes = pendentes.filter(l=>l.tipo==='Despesa' && naturezaLancamento(l)==='despesa').reduce((s,l)=>s+Number(l.valor),0);
-  const saldoProjetado = saldoContas + receitasPendentes - despesasPendentes;
-  const saude=calcularSaudeFinanceira(mes,ano), recomendacoes=gerarRecomendacoes(mes,ano);
-
-  return `
-    <div class="page-header"><div class="page-heading">
-      <h1 class="page-title">Olá, ${esc(state.usuario.nome)}</h1>
-      <p class="page-sub">Resumo de ${MESES[mes-1]} de ${ano}</p>
-    </div><div class="page-actions"><button class="btn btn-primary" id="btn-novo-lancamento">Novo lançamento</button></div></div>
-
-    <div class="cards-row">
-      <div class="stat-card"><div class="stat-label">Receitas do mês</div><div class="stat-value income">${formatMoney(receitas)}</div><div class="stat-meta">Entradas registradas em ${MESES[mes-1]}</div></div>
-      <div class="stat-card"><div class="stat-label">Despesas operacionais</div><div class="stat-value expense">${formatMoney(despesas)}</div><div class="stat-meta">Sem investimentos e transferências</div></div>
-      <div class="stat-card"><div class="stat-label">Saldo do mês</div><div class="stat-value">${formatMoney(saldo)}</div><div class="stat-meta">Receitas menos despesas</div></div>
-      <div class="stat-card"><div class="stat-label">Saldo em contas</div><div class="stat-value">${formatMoney(saldoContas)}</div><div class="stat-meta">Saldo consolidado atual</div></div>
-    </div>
-
-    <div class="section">
-      <div class="section-head"><h2>Pontos de atenção</h2><span class="stat-meta">${vencidos.length + categoriasEstouradas.length} item(ns)</span></div>
-      <div class="alert-list">
-        ${vencidos.length === 0 && categoriasEstouradas.length === 0 && saldo >= 0 ? '<div class="alert-item"><span class="alert-mark" style="background:var(--income);"></span><span>Nenhum alerta financeiro relevante neste momento.</span></div>' : ''}
-        ${saldo < 0 ? '<div class="alert-item"><span class="alert-mark" style="background:var(--expense);"></span><span>O resultado do mês está negativo. Revise as despesas operacionais.</span></div>' : ''}
-        ${vencidos.length ? `<div class="alert-item"><span class="alert-mark" style="background:var(--expense);"></span><span>Você possui <strong>${vencidos.length}</strong> vencimento(s) atrasado(s). Consulte a tela de Vencimentos.</span></div>` : ''}
-        ${categoriasEstouradas.map(c => `<div class="alert-item"><span class="alert-mark" style="background:var(--expense);"></span><span>A categoria <strong>${esc(c.nome)}</strong> ultrapassou o orçamento mensal.</span></div>`).join('')}
-        ${pendentes.length && !vencidos.length ? `<div class="alert-item"><span class="alert-mark"></span><span>Há <strong>${pendentes.length}</strong> lançamento(s) pendente(s) aguardando pagamento.</span></div>` : ''}
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-head"><h2>Leitura do mês</h2><span class="stat-meta">Comparação e recomendação</span></div>
-      <div class="insight-grid">
-        <div class="insight-card"><strong>Comparação com o mês anterior</strong>${variacaoDespesas===null ? 'Ainda não há histórico suficiente para comparar despesas.' : `As despesas operacionais ${variacaoDespesas>0?'aumentaram':'diminuíram'} ${Math.abs(variacaoDespesas)}%.`}</div>
-        <div class="insight-card"><strong>Próxima ação</strong>${vencidos.length ? 'Priorize os vencimentos atrasados antes de assumir novos compromissos.' : categoriasEstouradas.length ? `Revise o orçamento de ${esc(categoriasEstouradas[0].nome)}.` : saldoProjetado<0 ? 'O saldo projetado está negativo; revise as despesas pendentes.' : 'Mantenha os lançamentos atualizados para preservar esta leitura.'}</div>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-head"><h2>Saúde financeira</h2><span class="badge ${saude.pontos>=70?'badge-paid':'badge-pending'}">${saude.pontos}/100</span></div>
-      <div style="padding:16px 20px;"><div style="height:9px;background:var(--paper-alt);"><div style="height:100%;width:${saude.pontos}%;background:${saude.pontos>=70?'var(--income)':'var(--expense)'};"></div></div><p style="margin:10px 0 0;color:var(--muted);font-size:13px;">${saude.fatores.length?`Fatores: ${esc(saude.fatores.join(' · '))}`:'Sem fatores negativos identificados neste mês.'}</p></div>
-    </div>
-    <div class="section">
-      <div class="section-head"><h2>Próxima melhor ação</h2><span class="stat-meta">Prioridade ${recomendacoes[0].prioridade}</span></div>
-      <div style="padding:16px 20px;font-size:14px;">${esc(recomendacoes[0].texto)}</div>
-    </div>
-
-    <div class="section">
-      <div class="section-head"><h2>Fluxo de caixa projetado</h2><span class="stat-meta">Com base nos lançamentos pendentes</span></div>
-      <div class="projection-row">
-        <div class="projection-item"><span>Saldo atual</span><strong>${formatMoney(saldoContas)}</strong></div>
-        <div class="projection-item"><span>Receitas esperadas</span><strong class="money-in">${formatMoney(receitasPendentes)}</strong></div>
-        <div class="projection-item"><span>Despesas pendentes</span><strong class="money-out">${formatMoney(despesasPendentes)}</strong></div>
-        <div class="projection-item"><span>Saldo projetado</span><strong class="${saldoProjetado<0?'money-out':''}">${formatMoney(saldoProjetado)}</strong></div>
-      </div>
-    </div>
-
-    ${categoriasComOrcamento.length > 0 ? `
-    <div class="section">
-      <div class="section-head"><h2>Orçamento do mês</h2></div>
-      <div style="padding:6px 20px 18px;">
-        ${categoriasComOrcamento.map(c => {
-          const gasto = gastoPorCategoria(c.id, mes, ano);
-          const pct = Math.min(100, Math.round((gasto / c.orcado) * 100));
-          const estourou = gasto > c.orcado;
-          return `
-            <div style="padding:10px 0;border-bottom:1px solid var(--line-soft);">
-              <div style="display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:6px;">
-                <span>${c.nome}</span>
-                <span class="${estourou ? 'money-out' : ''}">${formatMoney(gasto)} de ${formatMoney(c.orcado)}</span>
-              </div>
-              <div style="height:6px;background:var(--paper-alt);border-radius:4px;overflow:hidden;">
-                <div style="height:100%;width:${pct}%;background:${estourou ? 'var(--expense)' : 'var(--income)'};"></div>
-              </div>
-            </div>`;
-        }).join('')}
-      </div>
-    </div>` : ''}
-
-    <div class="section">
-      <div class="section-head">
-        <h2>Lançamentos recentes</h2>
-        <button class="btn btn-ghost" data-action="go-lancamentos">Ver todos</button>
-      </div>
-      ${recentes.length === 0 ? emptyState('Nenhum lançamento ainda', 'Cadastre seu primeiro lançamento na aba Lançamentos.') : `
-      <table>
-        <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th class="num">Valor</th></tr></thead>
-        <tbody>
-          ${recentes.map(l => `
-            <tr>
-              <td>${formatDate(l.data)}</td>
-              <td>${l.descricao}</td>
-              <td>${catById(l.categoriaId)?.nome || '—'}</td>
-              <td class="num ${l.tipo === 'Receita' ? 'money-in' : 'money-out'}">${l.tipo === 'Receita' ? '+' : '-'} ${formatMoney(l.valor)}</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>`}
-    </div>
-    <div class="section">
-      <div class="section-head"><h2>Ações rápidas</h2></div>
-      <div class="quick-actions">
-        <button class="btn btn-primary" id="btn-home-novo">Novo lançamento</button>
-        <button class="btn btn-ghost" data-action="go-lancamentos">Consultar lançamentos</button>
-      </div>
-    </div>
-  `;
-}
-
 function emptyState(title, sub){
   return `<div class="empty-state"><strong>${title}</strong>${sub}</div>`;
 }
 
 /* ================= LANÇAMENTOS ================= */
-
-function legacyRenderLancamentosView(){
-  let items = lancamentosDoMes(lancFiltro.mes, lancFiltro.ano);
-  if(lancFiltro.categoriaId && lancFiltro.categoriaId !== 'todas'){
-    items = items.filter(l => l.categoriaId === lancFiltro.categoriaId);
-  }
-  if(lancFiltro.busca && lancFiltro.busca.trim()){
-    const q = lancFiltro.busca.trim().toLowerCase();
-    items = items.filter(l => l.descricao.toLowerCase().includes(q));
-  }
-  items = items.sort((a,b) => b.data.localeCompare(a.data));
-  const totalFiltrado = items.reduce((s,l) => s + (naturezaLancamento(l)==='receita' ? Number(l.valor) : naturezaLancamento(l)==='despesa' ? -Number(l.valor) : 0), 0);
-  const exibidos = lancMostrarTodos ? items : items.slice(0, 12);
-  const grupos = {};
-  exibidos.forEach(l => { (grupos[l.data] ||= []).push(l); });
-
-  return `
-    <div class="page-header"><div class="page-heading"><h1 class="page-title">Lançamentos</h1><p class="page-sub">Suas receitas e despesas, mês a mês</p></div></div>
-
-    <div class="section">
-      <div class="section-head">
-        <h2>${MESES[lancFiltro.mes-1]} de ${lancFiltro.ano}</h2>
-        <div class="page-actions"><button class="btn btn-ghost" id="btn-nova-transferencia">Transferir entre contas</button><button class="btn btn-ghost" id="btn-novo-investimento">Novo investimento</button><button class="btn btn-primary" id="btn-novo-lancamento">Novo lançamento</button></div>
-      </div>
-      <div class="filters">
-        <select id="filtro-mes" aria-label="Filtrar por mês">
-          ${MESES.map((m,i) => `<option value="${i+1}" ${i+1===lancFiltro.mes?'selected':''}>${m}</option>`).join('')}
-        </select>
-        <select id="filtro-ano" aria-label="Filtrar por ano">
-          ${anosDisponiveis().map(a => `<option value="${a}" ${a===lancFiltro.ano?'selected':''}>${a}</option>`).join('')}
-        </select>
-        <select id="filtro-categoria" aria-label="Filtrar por categoria">
-          <option value="todas">Todas as categorias</option>
-          ${state.categorias.map(c => `<option value="${c.id}" ${lancFiltro.categoriaId===c.id?'selected':''}>${c.nome}</option>`).join('')}
-        </select>
-        <input type="text" id="filtro-busca" aria-label="Buscar por descrição" placeholder="Buscar por descrição..." value="${esc(lancFiltro.busca || '')}" style="max-width:220px;">
-      </div>
-      <div class="summary-strip"><span>${items.length} lançamento(s)</span><span>Resultado filtrado: <strong>${formatMoney(totalFiltrado)}</strong></span></div>
-      ${items.length === 0 ? emptyState('Nada por aqui', 'Ajuste os filtros ou adicione um lançamento com o botão acima.') : `
-      <table>
-        <thead><tr><th>Data</th><th>Descrição</th><th>Conta</th><th>Categoria</th><th class="num">Valor</th><th>Status</th><th></th></tr></thead>
-        <tbody>
-          ${Object.entries(grupos).map(([data, grupo]) => `<tr><td colspan="7" class="group-title">${formatDate(data)}</td></tr>${grupo.map(l => `
-            <tr>
-              <td>${l.tipo}</td>
-              <td>${esc(l.descricao)}${l.fixa ? ' <span style="color:var(--muted);font-size:12px;">(fixa)</span>' : ''} ${serieLabel(l)}</td>
-              <td>${esc(contaById(l.contaId)?.nome || '—')}</td>
-              <td>${esc(catById(l.categoriaId)?.nome || '—')}</td>
-              <td class="num ${l.tipo === 'Receita' ? 'money-in' : 'money-out'}">${l.tipo === 'Receita' ? '+' : '-'} ${formatMoney(l.valor)}</td>
-              <td><span class="badge ${l.status === 'Pago' ? 'badge-paid' : 'badge-pending'}" style="cursor:pointer;" data-action="toggle-status" data-id="${l.id}">${l.status}</span></td>
-              <td>
-                <div class="row-actions">
-                  <button class="icon-btn" data-action="edit-lanc" data-id="${l.id}">Editar</button>
-                  ${l.serieId ? `<button class="icon-btn" data-action="toggle-serie" data-id="${l.serieId}">${serieEstaAtiva(l) ? 'Pausar série' : 'Retomar série'}</button>` : ''}
-                  <button class="icon-btn" data-action="del-lanc" data-id="${l.id}">Excluir</button>
-                </div>
-              </td>
-            </tr>`).join('')}`).join('')}
-        </tbody>
-      </table>${items.length > 12 ? `<div style="padding:14px 20px;text-align:center;"><button class="btn btn-ghost" id="btn-mostrar-lancamentos">${lancMostrarTodos ? 'Mostrar menos' : `Mostrar todos (${items.length})`}</button></div>` : ''}`}
-    </div>
-  `;
-}
-
-/* ================= VENCIMENTOS ================= */
-
-function legacyRenderVencimentosView(){
-  const hoje = todayLocal();
-  const pendentes = state.lancamentos
-    .filter(l => l.status === 'Pendente' && serieEstaAtiva(l) && naturezaLancamento(l) !== 'transferencia')
-    .map(l => ({ ...l, venc: l.dataVencimento || l.data }))
-    .sort((a,b) => a.venc.localeCompare(b.venc));
-  const grupos = [
-    ['Atrasados', pendentes.filter(l => l.venc < hoje)],
-    ['Vencem hoje', pendentes.filter(l => l.venc === hoje)],
-    ['Próximos 7 dias', pendentes.filter(l => l.venc > hoje && l.venc <= addDays(hoje,7))],
-    ['Próximos 30 dias', pendentes.filter(l => l.venc > addDays(hoje,7) && l.venc <= addDays(hoje,30))]
-  ].filter(g => g[1].length);
-
-  return `
-    <div class="page-header"><div class="page-heading"><h1 class="page-title">Vencimentos</h1><p class="page-sub">Compromissos ainda pendentes, ordenados por data de vencimento</p></div></div>
-    <div class="section">
-      ${pendentes.length === 0 ? emptyState('Nada pendente', 'Todos os lançamentos estão marcados como pagos.') : grupos.map(([nome, items]) => `
-      <div class="section-head"><h2>${nome}</h2><span class="stat-meta">${items.length} lançamento(s) · ${formatMoney(items.reduce((s,l)=>s+Number(l.valor),0))}</span></div>
-      <table>
-        <thead><tr><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Conta</th><th class="num">Valor</th><th>Situação</th><th></th></tr></thead>
-        <tbody>
-          ${items.map(l => {
-            const atrasado = l.venc < hoje;
-            return `
-            <tr>
-              <td>${formatDate(l.venc)}</td>
-              <td>${esc(l.descricao)}</td>
-              <td>${esc(catById(l.categoriaId)?.nome || '—')}</td>
-              <td>${esc(contaById(l.contaId)?.nome || '—')}</td>
-              <td class="num ${l.tipo === 'Receita' ? 'money-in' : 'money-out'}">${l.tipo === 'Receita' ? '+' : '-'} ${formatMoney(l.valor)}</td>
-              <td><span class="badge ${atrasado ? 'badge-pending' : 'badge-paid'}">${atrasado ? 'Atrasado' : 'A vencer'}</span></td>
-              <td><button class="icon-btn" data-action="toggle-status" data-id="${l.id}">Marcar pago</button></td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>`).join('')}
-    </div>
-  `;
-}
 
 function anosDisponiveis(){
   const anos = new Set(state.lancamentos.map(l => Number(l.data.slice(0,4))));
@@ -655,60 +439,6 @@ function anosDisponiveis(){
 }
 
 /* ================= BALANÇO ================= */
-
-function legacyRenderBalancoView(){
-  const receitasPorMes = [], despesasPorMes = [], investimentosPorMes = [], transferenciasPorMes = [], saldoPorMes = [];
-  for(let m=1;m<=12;m++){
-    const t = totaisDoMes(m, balancoAno);
-    receitasPorMes.push(t.receitas); despesasPorMes.push(t.despesas);
-    investimentosPorMes.push(totalPorNatureza(m,balancoAno,'investimento'));
-    transferenciasPorMes.push(totalPorNatureza(m,balancoAno,'transferencia'));
-    saldoPorMes.push(t.saldo);
-  }
-  const totalReceitas = receitasPorMes.reduce((a,b)=>a+b,0);
-  const totalDespesas = despesasPorMes.reduce((a,b)=>a+b,0);
-  const totalInvestimentos = investimentosPorMes.reduce((a,b)=>a+b,0);
-  const totalTransferencias = transferenciasPorMes.reduce((a,b)=>a+b,0);
-  const melhorMes = saldoPorMes.indexOf(Math.max(...saldoPorMes));
-  const historicoInvestimentos=state.lancamentos.filter(l=>naturezaLancamento(l)==='investimento').sort((a,b)=>b.data.localeCompare(a.data));
-
-  return `
-    <div class="page-header"><div class="page-heading"><h1 class="page-title">Balanço</h1><p class="page-sub">Receitas e despesas por mês</p></div></div>
-    <div class="cards-row">
-      <div class="stat-card"><div class="stat-label">Receitas no ano</div><div class="stat-value income">${formatMoney(totalReceitas)}</div><div class="stat-meta">Entradas registradas</div></div>
-      <div class="stat-card"><div class="stat-label">Despesas operacionais</div><div class="stat-value expense">${formatMoney(totalDespesas)}</div><div class="stat-meta">Sem movimentações patrimoniais</div></div>
-      <div class="stat-card"><div class="stat-label">Investimentos</div><div class="stat-value">${formatMoney(totalInvestimentos)}</div><div class="stat-meta">Aportes separados dos gastos</div></div>
-      <div class="stat-card"><div class="stat-label">Resultado anual</div><div class="stat-value">${formatMoney(totalReceitas-totalDespesas)}</div><div class="stat-meta">Melhor resultado: ${MESES[melhorMes]}</div></div>
-    </div>
-    <div class="section">
-      <div class="section-head">
-        <h2>Ano</h2>
-        <select id="filtro-ano-balanco" aria-label="Selecionar ano do balanço">
-          ${anosDisponiveis().map(a => `<option value="${a}" ${a===balancoAno?'selected':''}>${a}</option>`).join('')}
-        </select>
-      </div>
-      <div style="padding:20px 20px 4px;">${renderBarChart(receitasPorMes, despesasPorMes)}</div>
-      <table>
-        <thead><tr>
-          <th>Mês</th>
-          ${MESES.map(m => `<th class="num">${m}</th>`).join('')}
-          <th class="num">Total</th>
-        </tr></thead>
-        <tbody>
-          <tr><td>Receitas</td>${receitasPorMes.map(v => `<td class="num money-in">${formatMoney(v)}</td>`).join('')}<td class="num money-in">${formatMoney(totalReceitas)}</td></tr>
-          <tr><td>Despesas</td>${despesasPorMes.map(v => `<td class="num money-out">${formatMoney(v)}</td>`).join('')}<td class="num money-out">${formatMoney(totalDespesas)}</td></tr>
-          <tr><td>Investimentos</td>${investimentosPorMes.map(v => `<td class="num">${formatMoney(v)}</td>`).join('')}<td class="num">${formatMoney(totalInvestimentos)}</td></tr>
-          <tr><td>Transferências</td>${transferenciasPorMes.map(v => `<td class="num">${formatMoney(v)}</td>`).join('')}<td class="num">${formatMoney(totalTransferencias)}</td></tr>
-          <tr><td><strong>Balanço</strong></td>${saldoPorMes.map(v => `<td class="num"><strong>${formatMoney(v)}</strong></td>`).join('')}<td class="num"><strong>${formatMoney(totalReceitas-totalDespesas)}</strong></td></tr>
-        </tbody>
-      </table>
-    </div>
-    <div class="section">
-      <div class="section-head"><h2>Histórico de investimentos</h2><span class="stat-meta">${historicoInvestimentos.length} movimento(s)</span></div>
-      ${historicoInvestimentos.length ? `<table><thead><tr><th>Data</th><th>Movimento</th><th>Ativo</th><th>Instituição</th><th>Conta</th><th class="num">Valor</th></tr></thead><tbody>${historicoInvestimentos.map(l=>`<tr><td>${formatDate(l.data)}</td><td>${l.movimentoInvestimento==='resgate'?'Resgate':'Aporte'}</td><td>${esc(l.ativo||catById(l.categoriaId)?.nome||'—')}</td><td>${esc(l.instituicao||'—')}</td><td>${esc(contaById(l.contaId)?.nome||'—')}</td><td class="num">${formatMoney(l.valor)}</td></tr>`).join('')}</tbody></table>` : emptyState('Nenhum investimento registrado','Use “Novo investimento” na tela de Lançamentos.')}
-    </div>
-  `;
-}
 
 function renderBarChart(receitas, despesas){
   const w = 760, h = 190, padB = 20, padT = 8;
@@ -739,38 +469,10 @@ function renderBarChart(receitas, despesas){
 }
 
 function mesAtualKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
-function legacyRenderPlanejamentoView(){
-  const key=mesAtualKey(), p=state.planejamentos[key]||{receita:0,investimento:0,orcamentos:{}}; const [ano,mes]=key.split('-').map(Number); const t=totaisDoMes(mes,ano);
-  const despesasPlanejadas=state.categorias.filter(c=>c.tipo==='Saída'&&c.natureza!=='movimentacao').reduce((s,c)=>s+Number(p.orcamentos[c.id]||c.orcado||0),0);
-  const despesasRealizadas=t.despesas, investimentosRealizados=totalPorNatureza(mes,ano,'investimento'); const livre=Number(p.receita||0)-despesasPlanejadas-Number(p.investimento||0);
-  const savePlan=async()=>{state.planejamentos[key]={receita:toCents(document.getElementById('pl-receita').value),investimento:toCents(document.getElementById('pl-investimento').value),orcamentos:Object.fromEntries(state.categorias.map(c=>[c.id,toCents(document.getElementById('pl-cat-'+c.id).value)]))};await saveData();render();};
-  return `<div class="page-header"><div class="page-heading"><h1 class="page-title">Planejamento mensal</h1><p class="page-sub">Monte ${MESES[mes-1]} de ${ano} antes que o mês aconteça</p></div><div class="page-actions"><button class="btn btn-primary" id="btn-salvar-planejamento">Salvar planejamento</button><button class="btn btn-ghost" id="btn-fechar-mes">Fechar mês</button></div></div>
-  <div class="cards-row"><div class="stat-card"><div class="stat-label">Receita prevista</div><div class="stat-value income">${formatMoney(p.receita)}</div></div><div class="stat-card"><div class="stat-label">Despesas planejadas</div><div class="stat-value expense">${formatMoney(despesasPlanejadas)}</div></div><div class="stat-card"><div class="stat-label">Investimento planejado</div><div class="stat-value">${formatMoney(p.investimento)}</div></div><div class="stat-card"><div class="stat-label">Valor livre</div><div class="stat-value ${livre<0?'money-out':''}">${formatMoney(livre)}</div></div></div>
-  <div class="section"><div class="section-head"><h2>Premissas do mês</h2></div><div style="padding:18px 20px;"><div class="form-row"><div class="field"><label for="pl-receita">Receita prevista</label><input id="pl-receita" type="number" min="0" step="0.01" value="${fromCents(p.receita)}"></div><div class="field"><label for="pl-investimento">Investimento planejado</label><input id="pl-investimento" type="number" min="0" step="0.01" value="${fromCents(p.investimento)}"></div></div><h3 style="font-size:15px;margin:8px 0 12px;">Orçamento por categoria</h3>${state.categorias.filter(c=>c.tipo==='Saída'&&c.natureza!=='movimentacao').map(c=>`<div class="form-row"><div class="field"><label>${esc(c.nome)}</label><input id="pl-cat-${c.id}" type="number" min="0" step="0.01" value="${fromCents(p.orcamentos[c.id]??c.orcado??0)}"></div></div>`).join('')}</div></div>
-  <div class="section"><div class="section-head"><h2>Planejado × realizado</h2></div><table><thead><tr><th>Indicador</th><th class="num">Planejado</th><th class="num">Realizado</th><th class="num">Diferença</th></tr></thead><tbody><tr><td>Receitas</td><td class="num">${formatMoney(p.receita)}</td><td class="num money-in">${formatMoney(t.receitas)}</td><td class="num">${formatMoney(t.receitas-Number(p.receita||0))}</td></tr><tr><td>Despesas</td><td class="num">${formatMoney(despesasPlanejadas)}</td><td class="num money-out">${formatMoney(despesasRealizadas)}</td><td class="num">${formatMoney(despesasRealizadas-despesasPlanejadas)}</td></tr><tr><td>Investimentos</td><td class="num">${formatMoney(p.investimento)}</td><td class="num">${formatMoney(investimentosRealizados)}</td><td class="num">${formatMoney(investimentosRealizados-Number(p.investimento||0))}</td></tr></tbody></table></div>`;
-}
-
-function legacyRenderMetasView(){return `<div class="page-header"><div class="page-heading"><h1 class="page-title">Metas financeiras</h1><p class="page-sub">Acompanhe objetivos e próximos aportes</p></div><div class="page-actions"><button class="btn btn-primary" id="btn-nova-meta">Nova meta</button></div></div>${state.metas.length?state.metas.map(m=>{const pct=Math.min(100,Math.round((m.acumulado/m.alvo)*100));const meses=m.aporte?Math.ceil(Math.max(0,m.alvo-m.acumulado)/m.aporte):0;return `<div class="section"><div class="section-head"><h2>${esc(m.nome)}</h2><span class="badge ${pct>=100?'badge-paid':'badge-pending'}">${pct}% concluída</span></div><div style="padding:16px 20px;"><div style="display:flex;justify-content:space-between;font-size:13px;"><span>${formatMoney(m.acumulado)} acumulado</span><span>Meta: ${formatMoney(m.alvo)}</span></div><div style="height:8px;background:var(--paper-alt);margin:8px 0 14px;"><div style="height:100%;width:${pct}%;background:var(--income);"></div></div><div class="summary-strip"><span>Aporte mensal: <strong>${formatMoney(m.aporte)}</strong></span><span>Prazo: <strong>${formatDate(m.prazo)}</strong></span><span>Previsão: <strong>${pct>=100?'Concluída':meses?`${meses} mês(es)`: 'Defina o aporte'}</strong></span></div></div></div>`}).join(''):emptyState('Nenhuma meta cadastrada','Crie sua primeira meta financeira.')}`;}
-
-function legacyNovaMeta(){return openGoalForm();}
-function fecharMes(){const key=mesAtualKey(),[ano,mes]=key.split('-').map(Number);if(state.fechamentos[key]){infoModal('Mês já fechado','Este mês já está fechado e suas alterações estão protegidas.');return;}const t=totaisDoMes(mes,ano),obs=prompt('Observação do fechamento (opcional):','');if(obs!==null){state.fechamentos[key]={fechadoEm:todayLocal(),resultado:t.saldo,gasto:t.despesas,investido:totalPorNatureza(mes,ano,'investimento'),observacao:obs};registrarHistorico('fechamento_mes',`Mês ${key} fechado`);saveData().then(render);}}
+function fecharMes(){const key=mesAtualKey();if(mesFechado(`${key}-01`)){infoModal('Mês já fechado','Este mês já está fechado e suas alterações estão protegidas.');return;}const obs=prompt('Observação do fechamento (opcional):','');if(obs!==null){state.fechamentos[key]=FinTrackClosing.createSnapshot(state,key,{observacao:obs,fechadoEm:new Date().toISOString()});registrarHistorico('fechamento_mes',`Mês ${key} fechado`,{snapshot:state.fechamentos[key].snapshot});saveData().then(render);}}
+function reabrirMes(){const key=mesAtualKey();if(!mesFechado(`${key}-01`))return;if(confirm('Reabrir o mês atual? O snapshot histórico será preservado.')){state.fechamentos[key]=FinTrackClosing.reopen(state.fechamentos[key]);registrarHistorico('reabertura_mes',`Mês ${key} reaberto`);saveData().then(render);}}
 
 /* ================= CADASTRO ================= */
-
-function legacyRenderCadastroView(){
-  return `
-    <div class="page-header"><div class="page-heading"><h1 class="page-title">Cadastro</h1><p class="page-sub">Categorias e contas usadas nos seus lançamentos</p></div></div>
-    <div class="tabs" role="tablist" aria-label="Áreas de cadastro">
-      <button role="tab" aria-selected="${cadastroTab==='categorias'}" class="tab-btn ${cadastroTab==='categorias'?'active':''}" data-tab="categorias">Categorias</button>
-      <button role="tab" aria-selected="${cadastroTab==='contas'}" class="tab-btn ${cadastroTab==='contas'?'active':''}" data-tab="contas">Contas</button>
-      <button role="tab" aria-selected="${cadastroTab==='backup'}" class="tab-btn ${cadastroTab==='backup'?'active':''}" data-tab="backup">Backup e demonstração</button>
-      <button role="tab" aria-selected="${cadastroTab==='auditoria'}" class="tab-btn ${cadastroTab==='auditoria'?'active':''}" data-tab="auditoria">Auditoria</button>
-      <button role="tab" aria-selected="${cadastroTab==='cartoes'}" class="tab-btn ${cadastroTab==='cartoes'?'active':''}" data-tab="cartoes">Cartões</button>
-      <button role="tab" aria-selected="${cadastroTab==='dividas'}" class="tab-btn ${cadastroTab==='dividas'?'active':''}" data-tab="dividas">Dívidas</button>
-    </div>
-    ${cadastroTab === 'categorias' ? renderCategoriasTab() : cadastroTab === 'contas' ? renderContasTab() : cadastroTab === 'auditoria' ? renderAuditoriaTab() : cadastroTab === 'cartoes' ? renderCartoesTab() : cadastroTab === 'dividas' ? renderDividasTab() : renderBackupTab()}
-  `;
-}
 
 function renderAuditoriaTab(){
   const itens=[...(state.historico||[])].slice().reverse();
@@ -779,19 +481,12 @@ function renderAuditoriaTab(){
 
 function renderCartoesTab(){
   const invoices=state.cartoes.map(c=>({card:c,invoice:FinTrackCore.cardInvoice(state,c,new Date())}));
-  return `<div class="section"><div class="section-head"><div><h2>Cartões de crédito</h2><p class="section-sub">Fatura atual calculada pelo ciclo de fechamento</p></div><button class="btn btn-primary" id="btn-novo-cartao">Novo cartão</button></div>${invoices.length?`<table><thead><tr><th>Nome</th><th>Bandeira</th><th class="num">Fatura atual</th><th class="num">Disponível</th><th>Vencimento</th><th></th></tr></thead><tbody>${invoices.map(({card:c,invoice})=>`<tr><td>${esc(c.nome)}</td><td>${esc(c.bandeira||'—')}</td><td class="num money-out">${formatMoney(invoice.total)}<small style="display:block;color:var(--muted);">${invoice.items.length} compra(s)</small></td><td class="num ${invoice.available<0?'money-out':''}">${formatMoney(invoice.available)}</td><td>${formatDate(invoice.dueDate)}</td><td><button class="icon-btn" data-action="del-cartao" data-id="${c.id}">Excluir</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum cartão cadastrado','Cadastre cartões para organizar futuras faturas e limites.')}</div>`;
+  return `<div class="section"><div class="section-head"><div><h2>Cartões de crédito</h2><p class="section-sub">Fatura atual calculada pelo ciclo de fechamento</p></div><button class="btn btn-primary" id="btn-novo-cartao">Novo cartão</button></div>${invoices.length?`<table><thead><tr><th>Nome</th><th>Bandeira</th><th class="num">Fatura em aberto</th><th class="num">Disponível</th><th>Vencimento</th><th></th></tr></thead><tbody>${invoices.map(({card:c,invoice})=>`<tr><td>${esc(c.nome)}</td><td>${esc(c.bandeira||'—')}</td><td class="num money-out">${formatMoney(invoice.outstanding)}<small style="display:block;color:var(--muted);">${invoice.paid?`Pago: ${formatMoney(invoice.paid)} · `:''}${invoice.items.length} compra(s)</small></td><td class="num ${invoice.available<0?'money-out':''}">${formatMoney(invoice.available)}</td><td>${formatDate(invoice.dueDate)}</td><td><button class="icon-btn" data-action="pay-card" data-id="${c.id}" ${invoice.outstanding?'':'disabled'}>Pagar</button><button class="icon-btn" data-action="edit-cartao" data-id="${c.id}">Editar</button><button class="icon-btn" data-action="del-cartao" data-id="${c.id}">Excluir</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhum cartão cadastrado','Cadastre cartões para organizar futuras faturas e limites.')}</div>`;
 }
 function renderDividasTab(){
   const projected=state.dividas.map(d=>({debt:d,projection:FinTrackCore.debtProjection(d)}));
-  return `<div class="section"><div class="section-head"><div><h2>Controle de dívidas</h2><p class="section-sub">Estimativa de parcelas pelo saldo, juros e prazo informados</p></div><button class="btn btn-primary" id="btn-nova-divida">Nova dívida</button></div>${projected.length?`<table><thead><tr><th>Credor</th><th class="num">Saldo</th><th class="num">Parcela estimada</th><th class="num">Juros projetados</th><th>Próximo vencimento</th><th>Prioridade</th><th></th></tr></thead><tbody>${projected.map(({debt:d,projection:p})=>`<tr><td>${esc(d.credor)}<small style="display:block;color:var(--muted);">${p.periods?p.periods+' parcela(s)':'Prazo não informado'}</small></td><td class="num money-out">${formatMoney(d.saldo)}</td><td class="num">${p.installment?formatMoney(p.installment):'—'}</td><td class="num">${p.totalInterest?formatMoney(p.totalInterest):'—'}</td><td>${formatDate(d.proximoVencimento)}</td><td>${esc(d.prioridade||'—')}</td><td><button class="icon-btn" data-action="del-divida" data-id="${d.id}">Excluir</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhuma dívida cadastrada','Cadastre dívidas para acompanhar saldo e prioridade de quitação.')}</div>`;
+  return `<div class="section"><div class="section-head"><div><h2>Controle de dívidas</h2><p class="section-sub">Estimativa de parcelas pelo saldo, juros e prazo informados</p></div><button class="btn btn-primary" id="btn-nova-divida">Nova dívida</button></div>${projected.length?`<table><thead><tr><th>Credor</th><th class="num">Saldo</th><th class="num">Parcela estimada</th><th class="num">Juros projetados</th><th>Próximo vencimento</th><th>Prioridade</th><th></th></tr></thead><tbody>${projected.map(({debt:d,projection:p})=>`<tr><td>${esc(d.credor)}<small style="display:block;color:var(--muted);">${p.periods?p.periods+' parcela(s)':'Prazo não informado'}</small></td><td class="num money-out">${formatMoney(d.saldo)}</td><td class="num">${p.installment?formatMoney(p.installment):'—'}</td><td class="num">${p.totalInterest?formatMoney(p.totalInterest):'—'}</td><td>${formatDate(d.proximoVencimento)}</td><td>${esc(d.prioridade||'—')}</td><td><button class="icon-btn" data-action="pay-divida" data-id="${d.id}">Pagar</button><button class="icon-btn" data-action="edit-divida" data-id="${d.id}">Editar</button><button class="icon-btn" data-action="del-divida" data-id="${d.id}">Excluir</button></td></tr>`).join('')}</tbody></table>`:emptyState('Nenhuma dívida cadastrada','Cadastre dívidas para acompanhar saldo e prioridade de quitação.')}</div>`;
 }
-function legacyNovaCartao(){
-  openModal('Novo cartão',`<div class="field"><label>Nome</label><input id="cc-nome" placeholder="Ex: Nubank Platinum"></div><div class="form-row"><div class="field"><label>Bandeira</label><input id="cc-bandeira" placeholder="Ex: Visa"></div><div class="field"><label>Limite</label><input id="cc-limite" type="number" min="0" step="0.01"></div></div><div class="form-row"><div class="field"><label>Dia de fechamento</label><input id="cc-fechamento" type="number" min="1" max="31"></div><div class="field"><label>Dia de vencimento</label><input id="cc-vencimento" type="number" min="1" max="31"></div></div><div class="form-error" id="cc-error"></div><div class="modal-actions"><button class="btn btn-ghost" id="cc-cancel">Cancelar</button><button class="btn btn-primary" id="cc-save">Salvar</button></div>`,()=>{document.getElementById('cc-cancel').onclick=closeModal;document.getElementById('cc-save').onclick=async()=>{const nome=document.getElementById('cc-nome').value.trim(),limite=toCents(document.getElementById('cc-limite').value);if(!nome){document.getElementById('cc-error').textContent='Informe o nome do cartão.';return;}state.cartoes.push({id:uid('cartao'),nome,bandeira:document.getElementById('cc-bandeira').value.trim(),limite,fechamento:Number(document.getElementById('cc-fechamento').value)||null,vencimento:Number(document.getElementById('cc-vencimento').value)||null,ativo:true});registrarHistorico('criacao_cartao',`Cartão criado: ${nome}`);await saveData();closeModal();render();};});
-}
-function legacyNovaDivida(){
-  openModal('Nova dívida',`<div class="field"><label>Credor</label><input id="dv-credor" placeholder="Ex: Banco ou pessoa"></div><div class="form-row"><div class="field"><label>Saldo devedor</label><input id="dv-saldo" type="number" min="0" step="0.01"></div><div class="field"><label>Juros (% ao mês)</label><input id="dv-juros" type="number" min="0" step="0.01"></div></div><div class="form-row"><div class="field"><label>Parcelas restantes</label><input id="dv-parcelas" type="number" min="0"></div><div class="field"><label>Próximo vencimento</label><input id="dv-vencimento" type="date"></div></div><div class="field"><label>Prioridade</label><select id="dv-prioridade"><option>Alta</option><option selected>Média</option><option>Baixa</option></select></div><div class="form-error" id="dv-error"></div><div class="modal-actions"><button class="btn btn-ghost" id="dv-cancel">Cancelar</button><button class="btn btn-primary" id="dv-save">Salvar</button></div>`,()=>{document.getElementById('dv-cancel').onclick=closeModal;document.getElementById('dv-save').onclick=async()=>{const credor=document.getElementById('dv-credor').value.trim(),saldo=toCents(document.getElementById('dv-saldo').value),proximo=document.getElementById('dv-vencimento').value;if(!credor||saldo<=0||!proximo){document.getElementById('dv-error').textContent='Preencha credor, saldo e vencimento.';return;}state.dividas.push({id:uid('divida'),credor,saldo,juros:Number(document.getElementById('dv-juros').value)||0,parcelasRestantes:Number(document.getElementById('dv-parcelas').value)||0,proximoVencimento:proximo,prioridade:document.getElementById('dv-prioridade').value});registrarHistorico('criacao_divida',`Dívida criada: ${credor}`);await saveData();closeModal();render();};});
-}
-
 function renderBackupTab(){
   const temDemo = state.lancamentos.some(l => String(l.id).startsWith('demo-'));
   const lixeiraCount = state.lixeira.length;
@@ -812,6 +507,8 @@ function renderBackupTab(){
         <div style="border-top:1px solid var(--line-soft);padding-top:14px;width:100%;">
           <label for="backup-file" class="btn btn-ghost">Importar backup JSON</label>
           <input id="backup-file" type="file" accept="application/json,.json" style="display:none;">
+          <label for="csv-file" class="btn btn-ghost">Importar lançamentos CSV</label>
+          <input id="csv-file" type="file" accept="text/csv,.csv" style="display:none;">
           <p id="backup-status" style="margin:8px 0 0;color:var(--muted);font-size:12.5px;">A importação substitui os dados atuais após confirmação.</p>
         </div>
         <div style="border-top:1px solid var(--line-soft);padding-top:14px;width:100%;">
@@ -866,6 +563,21 @@ function importarJSON(e){
     const imported=normalizeData(raw); const resumo=`Backup válido: ${imported.lancamentos.length} lançamento(s), ${imported.contas.length} conta(s) e ${imported.categorias.length} categoria(s).`;
     if(confirm(`${resumo}\n\nOs dados atuais serão salvos como uma versão antes da importação. Continuar?`)){ await registrarBackup('Antes da importação'); state=imported; state._backups=state._backups||[]; await saveData(); status.textContent='Backup importado com sucesso.'; render(); }
   }catch(err){ status.textContent='Arquivo inválido. Selecione um backup JSON do FinTrack.'; } };
+  reader.readAsText(file);
+}
+
+function importarCSV(e){
+  const file=e.target.files[0]; if(!file) return;
+  const status=document.getElementById('backup-status'),reader=new FileReader();
+  const parseLine=line=>{const cells=[];let cell='',quoted=false;for(let i=0;i<line.length;i++){const char=line[i];if(char==='"'&&line[i+1]==='"'){cell+='"';i++;continue;}if(char==='"'){quoted=!quoted;continue;}if(char===';'&&!quoted){cells.push(cell);cell='';}else cell+=char;}cells.push(cell);return cells;};
+  reader.onload=async()=>{try{
+    const lines=String(reader.result).replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean),rows=lines.slice(1).map(parseLine),valid=rows.filter(row=>row.length>=7);
+    if(!lines.length||!valid.length){status.textContent='CSV inválido ou sem lançamentos.';return;}
+    const findByName=(items,name)=>items.find(item=>String(item.nome||'').trim().toLowerCase()===String(name||'').trim().toLowerCase());
+    const imported=valid.map((row,index)=>{const [data,vencimento,descricao,tipo,conta,categoria,valor,status='Pendente',fixa='Não']=row;const account=findByName(state.contas,conta),cat=findByName(state.categorias,categoria);return {id:uid('csv'),data,dataVencimento:vencimento||undefined,descricao:descricao.trim()||`Importado ${index+1}`,tipo:tipo==='Receita'?'Receita':'Despesa',contaId:account?.id||state.contas[0]?.id,categoriaId:cat?.id||state.categorias.find(item=>item.tipo===(tipo==='Receita'?'Entrada':'Saída'))?.id,valor:toCents(String(valor).replace(/\./g,'').replace(',','.')),status:status==='Pago'?'Pago':'Pendente',fixa:fixa==='Sim'};}).filter(item=>item.data&&item.contaId&&item.categoriaId&&item.valor>0);
+    if(!imported.length){status.textContent='Nenhuma linha válida encontrada. Verifique contas, categorias e valores.';return;}
+    if(confirm(`${imported.length} lançamento(s) válido(s) encontrado(s). Salvar backup e importar?`)){await registrarBackup('Antes da importação CSV');state.lancamentos.push(...imported);registrarHistorico('importacao_csv',`${imported.length} lançamento(s) importado(s)`);await saveData();status.textContent='CSV importado com sucesso.';render();}
+  }catch(error){status.textContent='Não foi possível ler o CSV. Use separador ponto e vírgula.';}};
   reader.readAsText(file);
 }
 
@@ -982,437 +694,6 @@ function renderContasTab(){
   `;
 }
 
-function legacyCategoriaFormHtml(cat){
-  const c = cat || { tipo: 'Saída', tipoGasto: 'Essencial' };
-  return `
-    <div class="field"><label>Nome</label><input type="text" id="f-cat-nome" value="${esc(c.nome)}" placeholder="Ex: 🍿 Lazer"></div>
-    <div class="form-row">
-      <div class="field"><label>Tipo</label>
-        <select id="f-cat-tipo">
-          <option value="Saída" ${c.tipo==='Saída'?'selected':''}>Saída</option>
-          <option value="Entrada" ${c.tipo==='Entrada'?'selected':''}>Entrada</option>
-        </select>
-      </div>
-      <div class="field"><label>Tipo de gasto</label>
-        <select id="f-cat-gasto">
-          <option value="Essencial" ${c.tipoGasto==='Essencial'?'selected':''}>Essencial</option>
-          <option value="Não Essencial" ${c.tipoGasto==='Não Essencial'?'selected':''}>Não Essencial</option>
-        </select>
-      </div>
-    </div>
-    <div class="field"><label>Orçado por mês</label><input type="number" step="0.01" min="0" id="f-cat-orcado" value="${c.orcado ? fromCents(c.orcado) : ''}"></div>
-    <div class="form-error" id="cat-error" role="alert"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" id="cf-form-cancel">Cancelar</button>
-      <button class="btn btn-primary" id="cf-form-save">Salvar</button>
-    </div>
-  `;
-}
-
-function legacyOpenCategoriaForm(cat){
-  openModal(cat ? 'Editar categoria' : 'Nova categoria', legacyCategoriaFormHtml(cat), () => {
-    document.getElementById('cf-form-cancel').onclick = closeModal;
-    document.getElementById('cf-form-save').onclick = async () => {
-      const nome = document.getElementById('f-cat-nome').value.trim();
-      if(!nome){ document.getElementById('cat-error').textContent='Informe o nome da categoria.'; return; }
-      const payload = {
-        id: cat ? cat.id : uid('cat'),
-        nome,
-        tipo: document.getElementById('f-cat-tipo').value,
-        tipoGasto: document.getElementById('f-cat-gasto').value,
-        orcado: toCents(document.getElementById('f-cat-orcado').value),
-      };
-      if(cat){
-        const idx = state.categorias.findIndex(x => x.id === cat.id);
-        state.categorias[idx] = payload;
-      }else{
-        state.categorias.push(payload);
-      }
-      await saveData();
-      closeModal();
-      render();
-    };
-  });
-}
-
-function legacyContaFormHtml(conta){
-  const c = conta || { dataSaldoInicial: todayLocal() };
-  return `
-    <div class="field"><label>Nome</label><input type="text" id="f-conta-nome" value="${esc(c.nome)}" placeholder="Ex: Nubank"></div>
-    <div class="form-row">
-      <div class="field"><label>Saldo inicial</label><input type="number" step="0.01" id="f-conta-saldo" value="${c.saldoInicial != null ? fromCents(c.saldoInicial) : ''}"></div>
-      <div class="field"><label>Data do saldo</label><input type="date" id="f-conta-data" value="${c.dataSaldoInicial}"></div>
-    </div>
-    <div class="form-error" id="conta-error" role="alert"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" id="ctf-cancel">Cancelar</button>
-      <button class="btn btn-primary" id="ctf-save">Salvar</button>
-    </div>
-  `;
-}
-
-function legacyOpenContaForm(conta){
-  openModal(conta ? 'Editar conta' : 'Nova conta', legacyContaFormHtml(conta), () => {
-    document.getElementById('ctf-cancel').onclick = closeModal;
-    document.getElementById('ctf-save').onclick = async () => {
-      const nome = document.getElementById('f-conta-nome').value.trim();
-      const error=document.getElementById('conta-error');
-      if(!nome){ error.textContent='Informe o nome da conta.'; return; }
-      if(!document.getElementById('f-conta-data').value){ error.textContent='Informe a data do saldo inicial.'; return; }
-      const payload = {
-        id: conta ? conta.id : uid('conta'),
-        nome,
-        saldoInicial: toCents(document.getElementById('f-conta-saldo').value),
-        dataSaldoInicial: document.getElementById('f-conta-data').value,
-      };
-      if(conta){
-        const idx = state.contas.findIndex(x => x.id === conta.id);
-        state.contas[idx] = payload;
-      }else{
-        state.contas.push(payload);
-      }
-      await saveData();
-      closeModal();
-      render();
-    };
-  });
-}
-
-/* ---------- Handlers por view (delegação de eventos) ---------- */
-
-function legacyAttachViewHandlers(){
-  const main = document.getElementById('main');
-
-  FinTrackScreenEvents.attach(main);
-
-  main.querySelectorAll('[data-action="go-lancamentos"]').forEach(b => b.onclick = () => setView('lancamentos'));
-  const btnHomeNovo = document.getElementById('btn-home-novo');
-  if(btnHomeNovo) btnHomeNovo.onclick = () => FinTrackFormLayer.open('lancamento',null);
-  const btnMostrarLanc = document.getElementById('btn-mostrar-lancamentos');
-  if(btnMostrarLanc) btnMostrarLanc.onclick = () => { lancMostrarTodos = !lancMostrarTodos; render(); };
-
-  // Lançamentos
-  const btnNovo = document.getElementById('btn-novo-lancamento');
-  if(btnNovo) btnNovo.onclick = () => FinTrackFormLayer.open('lancamento',null);
-  const btnTransferencia = document.getElementById('btn-nova-transferencia');
-  if(btnTransferencia) btnTransferencia.onclick = () => FinTrackFormLayer.open('transferencia');
-  const btnInvestimento = document.getElementById('btn-novo-investimento');
-  if(btnInvestimento) btnInvestimento.onclick = () => FinTrackFormLayer.open('investimento');
-
-  main.querySelectorAll('[data-action="edit-lanc"]').forEach(b => b.onclick = () => {
-    let lanc = state.lancamentos.find(l => l.id === b.dataset.id);
-    if(impedirAlteracaoMes(lanc?.data)) return;
-    if(lanc?.tipoOperacao==='transferencia'){
-      lanc=state.lancamentos.find(l=>l.operacaoId===lanc.operacaoId && l.movimentoTransferencia==='saida') || lanc;
-      FinTrackFormLayer.open('transferencia',lanc);
-      return;
-    }
-    const serie=state.lancamentos.filter(x=>x.serieId && x.serieId===lanc?.serieId);
-    if(serie.length>1) lanc._editarSerie=confirm('Este lançamento faz parte de uma série. OK edita toda a série; Cancelar edita somente este item.');
-    FinTrackFormLayer.open('lancamento',lanc);
-  });
-  main.querySelectorAll('[data-action="del-lanc"]').forEach(b => b.onclick = () => {
-    const lanc=state.lancamentos.find(l=>l.id===b.dataset.id);
-    if(impedirAlteracaoMes(lanc?.data)) return;
-    const linked=lanc?.tipoOperacao==='transferencia' && lanc.operacaoId
-      ? state.lancamentos.filter(l=>l.operacaoId===lanc.operacaoId)
-      : state.lancamentos.filter(l=>l.serieId && l.serieId===lanc?.serieId);
-    let modo='item';
-    if(lanc?.tipoOperacao==='transferencia' && linked.length>1){
-      if(!confirm('Esta transferência possui duas movimentações vinculadas. Mover as duas para a lixeira?')) return;
-      modo='serie';
-    }else if(linked.length>1){
-      if(lanc.serieTipo==='recorrencia'){
-        const escolha=prompt('Esta recorrência possui '+linked.length+' ocorrências. Digite 1 para excluir toda a série, 2 para excluir esta e as próximas ocorrências, ou 3 para excluir somente esta:','2');
-        modo=escolha==='1'?'serie':escolha==='2'?'futuro':'item';
-      }else{
-        modo=confirm(`Este lançamento faz parte de uma série com ${linked.length} itens. Clique em OK para excluir toda a série ou em Cancelar para excluir somente este item.`)?'serie':'item';
-      }
-    }
-    const alvo=modo==='serie' ? linked : modo==='futuro' ? linked.filter(l=>l.data>=lanc.data) : [lanc];
-    confirmAction(modo==='serie' ? 'Mover toda a série para a lixeira?' : modo==='futuro' ? 'Mover esta e as próximas ocorrências para a lixeira?' : 'Mover este lançamento para a lixeira?', async () => {
-      const ids=new Set(alvo.map(l=>l.id));
-      const removidos=state.lancamentos.filter(l=>ids.has(l.id));
-      state.lixeira.push(...removidos.map(l=>({...l,excluidoEm:new Date().toISOString()})));
-      state.lancamentos = state.lancamentos.filter(l => !ids.has(l.id));
-      state.historico.push({id:uid('hist'),acao:'exclusao',data:todayLocal(),descricao:`${removidos.length} lançamento(s) movido(s) para a lixeira`});
-      await saveData();
-      render();
-    });
-  });
-  main.querySelectorAll('[data-action="toggle-serie"]').forEach(b => b.onclick = () => alternarSerie(b.dataset.id));
-  main.querySelectorAll('[data-action="toggle-status"]').forEach(b => b.onclick = async () => {
-    const lanc = state.lancamentos.find(l => l.id === b.dataset.id);
-    if(impedirAlteracaoMes(lanc?.data)) return;
-    const novoStatus=lanc.status === 'Pago' ? 'Pendente' : 'Pago';
-    if(lanc.tipoOperacao==='transferencia' && lanc.operacaoId) state.lancamentos.filter(l=>l.operacaoId===lanc.operacaoId).forEach(l=>l.status=novoStatus);
-    else lanc.status=novoStatus;
-    registrarHistorico('alteracao_status',`Status alterado para ${novoStatus}: ${lanc.descricao}`,{lancamentoId:lanc.id});
-    await saveData();
-    render();
-  });
-
-  FinTrackFilters.bind(main);
-
-  const btnNovaCat = document.getElementById('btn-nova-categoria');
-  if(btnNovaCat) btnNovaCat.onclick = () => FinTrackFormLayer.open('categoria',null);
-  main.querySelectorAll('[data-action="edit-cat"]').forEach(b => b.onclick = () => FinTrackFormLayer.open('categoria',catById(b.dataset.id)));
-  main.querySelectorAll('[data-action="del-cat"]').forEach(b => b.onclick = () => {
-    const emUso = lancamentosEmUso('categoria', b.dataset.id);
-    if(emUso > 0){
-      infoModal('Não é possível excluir', `Esta categoria está sendo usada em ${emUso} lançamento${emUso > 1 ? 's' : ''}. Edite ou exclua esses lançamentos primeiro.`);
-      return;
-    }
-    confirmAction('Excluir esta categoria?', async () => {
-      state.categorias = state.categorias.filter(c => c.id !== b.dataset.id);
-      await saveData();
-      render();
-    });
-  });
-
-  const btnNovaConta = document.getElementById('btn-nova-conta');
-  if(btnNovaConta) btnNovaConta.onclick = () => FinTrackFormLayer.open('conta',null);
-  main.querySelectorAll('[data-action="edit-conta"]').forEach(b => b.onclick = () => FinTrackFormLayer.open('conta',contaById(b.dataset.id)));
-  main.querySelectorAll('[data-action="del-conta"]').forEach(b => b.onclick = () => {
-    const emUso = lancamentosEmUso('conta', b.dataset.id);
-    if(emUso > 0){
-      infoModal('Não é possível excluir', `Esta conta está sendo usada em ${emUso} lançamento${emUso > 1 ? 's' : ''}. Edite ou exclua esses lançamentos primeiro.`);
-      return;
-    }
-    confirmAction('Excluir esta conta?', async () => {
-      state.contas = state.contas.filter(c => c.id !== b.dataset.id);
-      await saveData();
-      render();
-    });
-  });
-
-  const btnExportJson = document.getElementById('btn-export-json');
-  if(btnExportJson) btnExportJson.onclick = exportarJSON;
-  const btnExportCsv = document.getElementById('btn-export-csv');
-  if(btnExportCsv) btnExportCsv.onclick = exportarCSV;
-  const backupFile=document.getElementById('backup-file');
-  if(backupFile) backupFile.onchange=importarJSON;
-  const btnDemo=document.getElementById('btn-carregar-demo');
-  if(btnDemo) btnDemo.onclick=carregarDemo;
-  const btnApagarDemo=document.getElementById('btn-apagar-demo');
-  if(btnApagarDemo) btnApagarDemo.onclick=apagarDemo;
-  const btnDesfazer=document.getElementById('btn-desfazer-exclusao');
-  if(btnDesfazer) btnDesfazer.onclick=async()=>{const item=state.lixeira.pop();if(item){delete item.excluidoEm;state.lancamentos.push(item);await saveData();render();}};
-  const btnRestaurarDemo=document.getElementById('btn-restaurar-demo');
-  if(btnRestaurarDemo) btnRestaurarDemo.onclick=restaurarDadosAnteriores;
-  main.querySelectorAll('[data-action="restore-backup"]').forEach(b=>b.onclick=()=>restaurarBackup(Number(b.dataset.index)));
-  const salvarPlan=document.getElementById('btn-salvar-planejamento'); if(salvarPlan) salvarPlan.onclick=async()=>{const key=mesAtualKey(),p=state.planejamentos[key]||{};p.receita=toCents(document.getElementById('pl-receita').value);p.investimento=toCents(document.getElementById('pl-investimento').value);p.orcamentos=Object.fromEntries(state.categorias.map(c=>[c.id,toCents(document.getElementById('pl-cat-'+c.id).value)]));state.planejamentos[key]=p;await saveData();render();};
-  const fechar=document.getElementById('btn-fechar-mes'); if(fechar) fechar.onclick=fecharMes;
-  const novaMetaBtn=document.getElementById('btn-nova-meta'); if(novaMetaBtn) novaMetaBtn.onclick=()=>FinTrackFormLayer.open('meta');
-}
-
-/* ---------- Formulário de lançamento ---------- */
-
-function legacyOpenTransferenciaForm(transf=null){
-  if(state.contas.length<2){ infoModal('Cadastre duas contas','Uma transferência precisa de uma conta de origem e outra de destino.'); return; }
-  openModal('Nova transferência', `
-    <div class="form-row"><div class="field"><label for="tr-data">Data</label><input type="date" id="tr-data" value="${transf?.data||todayLocal()}"></div><div class="field"><label for="tr-status">Status</label><select id="tr-status"><option ${transf?.status==='Pago'?'selected':''}>Pago</option><option ${transf?.status==='Pendente'?'selected':''}>Pendente</option></select></div></div>
-    <div class="form-row"><div class="field"><label for="tr-origem">Conta de origem</label><select id="tr-origem">${state.contas.map(c=>`<option value="${c.id}" ${transf?.contaId===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}</select></div><div class="field"><label for="tr-destino">Conta de destino</label><select id="tr-destino">${state.contas.map((c,i)=>`<option value="${c.id}" ${transf?.contaDestinoId===c.id || (!transf&&i===1)?'selected':''}>${esc(c.nome)}</option>`).join('')}</select></div></div>
-    <div class="field"><label for="tr-descricao">Descrição</label><input id="tr-descricao" value="${esc(transf?.descricao||'Transferência entre contas')}" maxlength="120"></div>
-    <div class="field"><label for="tr-valor">Valor</label><input type="number" id="tr-valor" min="0.01" step="0.01" value="${transf ? fromCents(transf.valor) : ''}"></div><div class="form-error" id="tr-error" role="alert"></div>
-    <div class="modal-actions"><button class="btn btn-ghost" id="tr-cancel">Cancelar</button><button class="btn btn-primary" id="tr-save">${transf?'Salvar alterações':'Salvar transferência'}</button></div>
-  `,()=>{
-    document.getElementById('tr-cancel').onclick=closeModal;
-    document.getElementById('tr-save').onclick=async()=>{
-      const erro=document.getElementById('tr-error'); const origem=document.getElementById('tr-origem').value; const destino=document.getElementById('tr-destino').value; const valor=Number(document.getElementById('tr-valor').value);
-      if(impedirAlteracaoMes(document.getElementById('tr-data').value)) return;
-      if(origem===destino){erro.textContent='A conta de origem e a conta de destino precisam ser diferentes.';return;}
-      if(!Number.isFinite(valor)||valor<=0){erro.textContent='Informe um valor maior que zero.';return;}
-      const operacaoId=transf?.operacaoId || uid('op-transferencia');
-      const base={operacaoId,tipoOperacao:'transferencia',natureza:'transferencia',data:document.getElementById('tr-data').value,descricao:document.getElementById('tr-descricao').value.trim()||'Transferência entre contas',valor:toCents(valor),status:document.getElementById('tr-status').value,fixa:false};
-      const movimentos=[
-        {...base,id:transf?.id||uid('transf'),tipo:'Despesa',movimentoTransferencia:'saida',contaId:origem,contaDestinoId:destino},
-        {...base,id:transf?.id ? (state.lancamentos.find(l=>l.operacaoId===transf.operacaoId&&l.movimentoTransferencia==='entrada')?.id||uid('transf')) : uid('transf'),tipo:'Receita',movimentoTransferencia:'entrada',contaId:destino,contaOrigemId:origem,contaDestinoId:undefined}
-      ];
-      state.lancamentos=state.lancamentos.filter(l=>l.operacaoId!==operacaoId);
-      state.lancamentos.push(...movimentos);
-      registrarHistorico(transf?'edicao_transferencia':'criacao_transferencia',`${transf?'Transferência editada':'Transferência criada'}: ${base.descricao}`,{operacaoId,valor:base.valor});
-      await saveData(); closeModal(); render();
-    };
-  });
-}
-
-function legacyOpenInvestimentoForm(){
-  if(state.contas.length === 0){ infoModal('Cadastre uma conta primeiro','Um investimento precisa sair ou retornar para uma conta cadastrada.'); return; }
-  openModal('Novo investimento', `
-    <div class="form-row"><div class="field"><label for="inv-tipo">Movimento</label><select id="inv-tipo"><option value="aporte">Aporte</option><option value="resgate">Resgate</option></select></div><div class="field"><label for="inv-status">Status</label><select id="inv-status"><option>Pago</option><option>Pendente</option></select></div></div>
-    <div class="form-row"><div class="field"><label for="inv-data">Data</label><input type="date" id="inv-data" value="${todayLocal()}"></div><div class="field"><label for="inv-conta">Conta</label><select id="inv-conta">${state.contas.map(c=>`<option value="${c.id}">${esc(c.nome)}</option>`).join('')}</select></div></div>
-    <div class="form-row"><div class="field"><label for="inv-ativo">Tipo do ativo</label><input id="inv-ativo" placeholder="Ex: Tesouro, CDB, ETF" maxlength="60"></div><div class="field"><label for="inv-instituicao">Instituição</label><input id="inv-instituicao" placeholder="Ex: Banco ou corretora" maxlength="80"></div></div>
-    <div class="field"><label for="inv-descricao">Descrição</label><input id="inv-descricao" placeholder="Ex: Aporte mensal"></div>
-    <div class="field"><label for="inv-valor">Valor</label><input type="number" id="inv-valor" min="0.01" step="0.01"></div><div class="form-error" id="inv-error" role="alert"></div>
-    <div class="modal-actions"><button class="btn btn-ghost" id="inv-cancel">Cancelar</button><button class="btn btn-primary" id="inv-save">Salvar investimento</button></div>
-  `,()=>{
-    document.getElementById('inv-cancel').onclick=closeModal;
-    document.getElementById('inv-save').onclick=async()=>{
-      const erro=document.getElementById('inv-error'), valor=Number(document.getElementById('inv-valor').value), ativo=document.getElementById('inv-ativo').value.trim(), instituicao=document.getElementById('inv-instituicao').value.trim();
-      if(impedirAlteracaoMes(document.getElementById('inv-data').value)) return;
-      if(!Number.isFinite(valor)||valor<=0){erro.textContent='Informe um valor maior que zero.';return;}
-      if(!ativo){erro.textContent='Informe o tipo do ativo.';return;}
-      const movimento=document.getElementById('inv-tipo').value;
-      const categoria=state.categorias.find(c=>c.id==='cat-investimento') || state.categorias.find(c=>String(c.nome||'').toLowerCase().includes('investimento'));
-      state.lancamentos.push({id:uid('investimento'),operacaoId:uid('op-investimento'),tipoOperacao:'investimento',natureza:'investimento',movimentoInvestimento:movimento,tipo:'Despesa',data:document.getElementById('inv-data').value,descricao:document.getElementById('inv-descricao').value.trim() || `${movimento==='aporte'?'Aporte':'Resgate'} · ${ativo}`,contaId:document.getElementById('inv-conta').value,categoriaId:categoria?.id,valor:toCents(valor),status:document.getElementById('inv-status').value,ativo,instituicao,fixa:false});
-      registrarHistorico('criacao_investimento',`${movimento==='aporte'?'Aporte':'Resgate'} registrado: ${ativo}`,{valor:toCents(valor),instituicao});
-      await saveData(); closeModal(); render();
-    };
-  });
-}
-
-function legacyOpenLancamentoFormSimple(lanc){
-  if(state.contas.length === 0){
-    infoModal('Cadastre uma conta primeiro', 'Você precisa ter pelo menos uma conta cadastrada para lançar uma receita ou despesa. Vá em Cadastro &gt; Contas.');
-    return;
-  }
-  const temCategoriaSaida = state.categorias.some(c => c.tipo === 'Saída');
-  const temCategoriaEntrada = state.categorias.some(c => c.tipo === 'Entrada');
-  if(!temCategoriaSaida && !temCategoriaEntrada){
-    infoModal('Cadastre uma categoria primeiro', 'Você precisa ter pelo menos uma categoria cadastrada para lançar uma receita ou despesa. Vá em Cadastro &gt; Categorias.');
-    return;
-  }
-  legacyRenderLancFormModal(lanc, lanc ? lanc.tipo : 'Despesa');
-}
-
-function legacyRenderLancFormModal(lanc, tipoAtual, draft){
-  const base = draft || lanc || { data: todayLocal(), status: 'Pendente', fixa: false, repetirMeses: 12 };
-  const l = { ...base, tipo: tipoAtual };
-  const categoriasFiltradas = state.categorias.filter(c => c.tipo === (tipoAtual === 'Receita' ? 'Entrada' : 'Saída'));
-  const semCategoria = categoriasFiltradas.length === 0;
-
-  openModal(lanc ? 'Editar lançamento' : 'Novo lançamento', `
-    <div class="form-row">
-      <div class="field"><label>Tipo</label>
-        <select id="f-tipo">
-          <option value="Despesa" ${tipoAtual==='Despesa'?'selected':''}>Despesa</option>
-          <option value="Receita" ${tipoAtual==='Receita'?'selected':''}>Receita</option>
-        </select>
-      </div>
-      <div class="field"><label>Status</label>
-        <select id="f-status">
-          <option value="Pendente" ${l.status==='Pendente'?'selected':''}>Pendente</option>
-          <option value="Pago" ${l.status==='Pago'?'selected':''}>Pago</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="field"><label>Data do lançamento</label><input type="date" id="f-data" value="${l.data}"></div>
-      <div class="field"><label>Data de vencimento (opcional)</label><input type="date" id="f-data-vencimento" value="${l.dataVencimento || ''}"></div>
-    </div>
-    <div class="field"><label>Descrição</label><input type="text" id="f-descricao" value="${esc(l.descricao)}" placeholder="Ex: Mercado do mês"></div>
-    <div class="form-row">
-      <div class="field"><label>Conta</label>
-        <select id="f-conta">${state.contas.map(c => `<option value="${c.id}" ${l.contaId===c.id?'selected':''}>${c.nome}</option>`).join('')}</select>
-      </div>
-      <div class="field"><label>Categoria</label>
-        <select id="f-categoria" ${semCategoria ? 'disabled' : ''}>
-          ${semCategoria ? '<option>Nenhuma categoria deste tipo</option>' : categoriasFiltradas.map(c => `<option value="${c.id}" ${l.categoriaId===c.id?'selected':''}>${c.nome}</option>`).join('')}
-        </select>
-      </div>
-    </div>
-    ${tipoAtual==='Despesa' && state.cartoes.length ? `<div class="field"><label>Cartão (opcional)</label><select id="f-cartao"><option value="">Não usar cartão</option>${state.cartoes.map(c=>`<option value="${c.id}" ${l.cartaoId===c.id?'selected':''}>${esc(c.nome)}</option>`).join('')}</select></div>` : ''}
-    <div class="field"><label>Valor</label><input type="number" step="0.01" min="0" id="f-valor" value="${l.valor ? fromCents(l.valor) : ''}"></div>
-    <div class="form-error" id="lanc-error" role="alert"></div>
-    ${!lanc ? `<div class="field checkbox-field"><input type="checkbox" id="f-parcelado"><label for="f-parcelado" style="margin:0;">Compra parcelada</label></div><div id="wrap-parcelado" style="display:none;"><div class="form-row"><div class="field"><label>Valor total</label><input type="number" step="0.01" min="0" id="f-total-parcelas"></div><div class="field"><label>Quantidade de parcelas</label><input type="number" min="2" max="60" id="f-qtd-parcelas" value="2"></div></div></div>` : ''}
-    ${!lanc ? `<div class="field checkbox-field"><input type="checkbox" id="f-recorrente"><label for="f-recorrente" style="margin:0;">Criar recorrência</label></div><div id="wrap-recorrente" style="display:none;"><div class="form-row"><div class="field"><label>Frequência</label><select id="f-frequencia"><option value="mensal">Mensal</option><option value="semanal">Semanal</option><option value="anual">Anual</option></select></div><div class="field"><label>Repetir por</label><input type="number" id="f-qtd-recorrencia" min="1" max="60" value="12"></div></div><div class="field"><label>Data final (opcional)</label><input type="date" id="f-data-final"></div></div>` : ''}
-    ${semCategoria ? `<p style="font-size:12.5px;color:var(--expense);margin:0 0 8px;">Não há categorias de ${tipoAtual === 'Receita' ? 'Entrada' : 'Saída'} cadastradas — cadastre uma em Cadastro &gt; Categorias antes de salvar.</p>` : ''}
-    <div class="modal-actions">
-      <button class="btn btn-ghost" id="lf-cancel">Cancelar</button>
-      <button class="btn btn-primary" id="lf-save" ${semCategoria ? 'disabled' : ''}>Salvar</button>
-    </div>
-  `, () => {
-    document.getElementById('f-tipo').onchange = (e) => {
-      const draft = {
-        data: document.getElementById('f-data').value,
-        dataVencimento: document.getElementById('f-data-vencimento').value,
-        descricao: document.getElementById('f-descricao').value,
-        contaId: document.getElementById('f-conta').value,
-        cartaoId: document.getElementById('f-cartao')?.value || null,
-        valor: toCents(document.getElementById('f-valor').value),
-        status: document.getElementById('f-status').value,
-      };
-      legacyRenderLancFormModal(lanc, e.target.value, draft);
-    };
-    document.getElementById('f-parcelado')?.addEventListener('change',e=>document.getElementById('wrap-parcelado').style.display=e.target.checked?'block':'none');
-    document.getElementById('f-recorrente')?.addEventListener('change',e=>document.getElementById('wrap-recorrente').style.display=e.target.checked?'block':'none');
-    document.getElementById('lf-cancel').onclick = closeModal;
-    document.getElementById('lf-save').onclick = async () => {
-      const valor = parseFloat(document.getElementById('f-valor').value);
-      const descricao = document.getElementById('f-descricao').value.trim();
-      const categoriaId = document.getElementById('f-categoria').value;
-      const error=document.getElementById('lanc-error');
-      if(!descricao){error.textContent='Informe uma descrição.';return;}
-      if(isNaN(valor)||valor<=0){error.textContent='Informe um valor maior que zero.';return;}
-      if(!document.getElementById('f-data').value){error.textContent='Informe a data do lançamento.';return;}
-      if(impedirAlteracaoMes(document.getElementById('f-data').value)) return;
-      if(semCategoria){error.textContent='Cadastre uma categoria deste tipo antes de salvar.';return;}
-      const parcelado = document.getElementById('f-parcelado')?.checked;
-      const recorrente = document.getElementById('f-recorrente')?.checked;
-      if(parcelado && recorrente){error.textContent='Escolha parcelamento ou recorrência, não os dois ao mesmo tempo.';return;}
-      const totalParcelas=parcelado ? Math.max(2,Math.min(60,parseInt(document.getElementById('f-qtd-parcelas').value)||2)) : 1;
-      const recorrenciaQtd=recorrente ? Math.max(1,Math.min(60,parseInt(document.getElementById('f-qtd-recorrencia').value)||1)) : 1;
-      const serieId=(parcelado||recorrente)?uid(parcelado?'parcelamento':'recorrencia'):null;
-      const payload = {
-        id: lanc ? lanc.id : uid('lanc'),
-        operacaoId: lanc ? (lanc.operacaoId || null) : null,
-        tipoOperacao: lanc?.tipoOperacao || (document.getElementById('f-tipo').value === 'Receita' ? 'receita' : 'despesa'),
-        tipo: document.getElementById('f-tipo').value,
-        data: document.getElementById('f-data').value,
-        dataVencimento: document.getElementById('f-data-vencimento').value || undefined,
-        descricao,
-        contaId: document.getElementById('f-conta').value,
-        categoriaId,
-        cartaoId: document.getElementById('f-cartao')?.value || null,
-        valor: toCents(valor),
-        status: document.getElementById('f-status').value,
-        fixa:false,
-        serieId: lanc ? lanc.serieId : serieId,
-        serieTipo: lanc ? lanc.serieTipo : (parcelado ? 'parcelamento' : recorrente ? 'recorrencia' : undefined),
-        serieStatus: (parcelado || recorrente || lanc?.serieId) ? (lanc?.serieStatus || 'ativa') : undefined,
-        parcelaAtual: lanc ? lanc.parcelaAtual : (parcelado ? 1 : undefined),
-        totalParcelas: lanc ? lanc.totalParcelas : (parcelado ? totalParcelas : undefined),
-        frequencia: lanc ? lanc.frequencia : (recorrente ? document.getElementById('f-frequencia').value : undefined),
-        dataFinal: lanc ? lanc.dataFinal : (recorrente ? document.getElementById('f-data-final').value || undefined : undefined),
-      };
-      if(lanc){
-        const idx = state.lancamentos.findIndex(x => x.id === lanc.id);
-        state.lancamentos[idx] = payload;
-        if(lanc._editarSerie && lanc.serieId){
-          state.lancamentos=state.lancamentos.map(x => x.serieId===lanc.serieId ? {...x,descricao:payload.descricao,contaId:payload.contaId,categoriaId:payload.categoriaId,status:payload.status,valor:payload.valor,serieStatus:payload.serieStatus} : x);
-        }
-      }else{
-        state.lancamentos.push(payload);
-        if(parcelado || recorrente){
-          const n = parcelado ? totalParcelas : recorrenciaQtd;
-          const totalCentavos=parcelado ? toCents(document.getElementById('f-total-parcelas').value) : payload.valor;
-          const baseParcela=parcelado ? Math.floor(totalCentavos/n) : payload.valor;
-          for(let k=1;k<n;k++){
-            state.lancamentos.push({
-              ...payload,
-              id: uid('lanc'),
-              data: addInterval(payload.data,k,payload.frequencia||'mensal'),
-              dataVencimento: payload.dataVencimento ? addInterval(payload.dataVencimento,k,payload.frequencia||'mensal') : undefined,
-              valor: parcelado ? baseParcela + (k===n-1 ? totalCentavos-baseParcela*n : 0) : payload.valor,
-              parcelaAtual: parcelado ? k+1 : undefined,
-              descricao: parcelado ? `${descricao} (${k+1} de ${n})` : descricao,
-              status: 'Pendente',
-              serieStatus: 'ativa',
-            });
-          }
-        }
-      }
-      registrarHistorico(lanc?'edicao_lancamento':'criacao_lancamento',`${lanc?'Lançamento editado':'Lançamento criado'}: ${descricao}`,{lancamentoId:payload.id,valor:payload.valor});
-      await saveData();
-      closeModal();
-      lancFiltro.mes = Number(payload.data.slice(5,7));
-      lancFiltro.ano = Number(payload.data.slice(0,4));
-      render();
-    };
-  });
-}
-
 /* ---------- Registro de formulários ---------- */
 FinTrackForms.register('categoria', openCategoryForm);
 FinTrackForms.register('conta', openAccountForm);
@@ -1432,7 +713,7 @@ FinTrackFormLayer.connect({
   cartao:(...args)=>FinTrackForms.open('cartao',...args),
   divida:(...args)=>FinTrackForms.open('divida',...args),
 });
-FinTrackEvents.use(legacyAttachViewHandlers);
+FinTrackEvents.use(attachViewHandlers);
 
 /* ---------- Boot ---------- */
 

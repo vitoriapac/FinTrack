@@ -6,6 +6,7 @@
   const toCents = value => Math.round(Number(value || 0) * 100);
 
   function normalizeData(data, fallback){
+    if(window.FinTrackNormalize) return window.FinTrackNormalize.normalizeData(data,fallback);
     data = data || clone(fallback || {});
     if(!data.__centsVersion){
       data.contas=(data.contas||[]).map(c=>({...c,saldoInicial:toCents(c.saldoInicial)}));
@@ -27,6 +28,8 @@
     data.series=data.series||[];
     data.cartoes=data.cartoes||[];
     data.dividas=data.dividas||[];
+    data.pagamentosCartao=data.pagamentosCartao||[];
+    data.pagamentosDividas=data.pagamentosDividas||[];
     data.lancamentos=(data.lancamentos||[]).map(l=>({
       ...l,
       tipoOperacao:l.tipoOperacao || (l.natureza==='transferencia' ? 'transferencia' : l.natureza==='investimento' ? 'investimento' : l.tipo==='Receita' ? 'receita' : 'despesa'),
@@ -106,8 +109,10 @@
       return invoiceMonth===keyMonth&&invoiceYear===keyYear;
     });
     const total=items.reduce((sum,l)=>sum+Number(l.valor||0),0);
+    const paid=(data.pagamentosCartao||[]).filter(payment=>payment.cartaoId===card?.id&&payment.invoiceKey===`${keyYear}-${String(keyMonth).padStart(2,'0')}`).reduce((sum,payment)=>sum+Number(payment.valor||0),0);
+    const outstanding=Math.max(0,total-paid);
     const dueDate=new Date(keyYear,keyMonth-1,Math.min(dueDay,new Date(keyYear,keyMonth,0).getDate()));
-    return {key:`${keyYear}-${String(keyMonth).padStart(2,'0')}`,year:keyYear,month:keyMonth,total,limit:Number(card?.limite||0),available:Number(card?.limite||0)-total,dueDate:dueDate.toISOString().slice(0,10),items};
+    return {key:`${keyYear}-${String(keyMonth).padStart(2,'0')}`,year:keyYear,month:keyMonth,total,paid,outstanding,limit:Number(card?.limite||0),available:Number(card?.limite||0)-outstanding,dueDate:dueDate.toISOString().slice(0,10),items};
   }
 
   function debtProjection(debt){
