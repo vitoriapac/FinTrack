@@ -69,6 +69,9 @@
   .projection-item:last-child{border-right:0;}
   .projection-item span{display:block;color:var(--muted);font-size:12px;margin-bottom:4px;}
   .projection-item strong{font-family:'Fraunces',serif;font-size:20px;}
+  .demo-banner{display:flex;align-items:center;gap:12px;padding:10px 14px;margin-bottom:18px;background:rgba(185,134,47,.15);border:1px solid rgba(185,134,47,.45);color:var(--forest);font-size:13px;}
+  .demo-banner strong{letter-spacing:.05em;font-size:12px;}
+  .demo-banner span{flex:1;color:var(--muted);}
 
   /* Section */
   .section{background:var(--card);border:1px solid var(--line-soft);border-radius:var(--radius);margin-bottom:20px;overflow:hidden;}
@@ -84,7 +87,7 @@
   td.money-in,.money-in{color:var(--income);}
   td.money-out,.money-out{color:var(--expense);}
   .row-actions{display:flex;gap:6px;justify-content:flex-end;}
-  .icon-btn{all:unset;cursor:pointer;color:var(--muted);font-size:13px;padding:3px 6px;border-radius:2px;}
+  .icon-btn{all:unset;cursor:pointer;color:var(--muted);font-size:13px;padding:7px 8px;min-height:36px;border-radius:2px;}
   .icon-btn:hover{background:var(--paper-alt);color:var(--ink);}
 
   .empty-state{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px;}
@@ -120,6 +123,7 @@
   .modal h3{margin:0 0 18px;font-size:19px;font-weight:600;}
   .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
   .form-error{color:var(--expense);font-size:12.5px;margin:-5px 0 10px;min-height:18px;}
+  [aria-live]{min-height:18px;}
 
   /* Tabs (Cadastro) */
   .tabs{display:flex;gap:4px;margin-bottom:18px;}
@@ -133,6 +137,7 @@
   select, input{width:100%;}
   @media (max-width:900px){main{padding:28px 24px}.cards-row{grid-template-columns:repeat(2,minmax(0,1fr))}.projection-row{grid-template-columns:repeat(2,1fr)}.projection-item:nth-child(2){border-right:0}}
   @media (max-width:640px){#app{display:block}.sidebar{position:relative;width:100%;height:auto;padding:16px 0}.brand{padding:0 18px 14px;margin-bottom:0}.sidebar-foot{display:none}nav{display:flex;flex-direction:row;overflow:auto;margin-top:8px}.nav-item{white-space:nowrap;padding:10px 14px;border-left:0;border-bottom:3px solid transparent}.nav-item.active{border-left:0;border-bottom-color:var(--gold)}main{padding:24px 14px}.page-header{display:block;margin-bottom:20px}.page-actions{justify-content:flex-start;margin-top:14px}.cards-row{grid-template-columns:1fr 1fr;gap:10px}.stat-card{padding:14px 12px}.stat-value{font-size:22px}.section-head{padding:13px 14px;flex-wrap:wrap}.section{overflow-x:auto}table{min-width:680px}.filters{flex-wrap:wrap;padding:12px 14px}.filters select,.filters input{min-width:140px;flex:1}.insight-grid{grid-template-columns:1fr;padding:14px}.projection-row{grid-template-columns:1fr}.projection-item{border-right:0;border-bottom:1px solid var(--line-soft)}}
+  @media (max-width:480px){main{padding:18px 10px}.page-title{font-size:23px}.cards-row{grid-template-columns:1fr}.stat-card{padding:13px}.btn{width:100%;min-height:42px}.page-actions,.quick-actions{width:100%;flex-direction:column}.page-actions .btn,.quick-actions .btn{width:100%}.form-row{flex-direction:column;gap:0}.modal{padding:20px 16px;max-width:calc(100vw - 20px)}.modal-actions{flex-direction:column-reverse}.modal-actions .btn{width:100%;min-height:42px}.tabs{overflow-x:auto;padding-bottom:4px}.tab-btn{white-space:nowrap;min-height:40px}.filters select,.filters input{min-width:100%}.section-head h2{font-size:15px}.demo-banner{align-items:flex-start;flex-direction:column;gap:6px}.demo-banner .btn{width:100%}}
 </style>
 </head>
 <body>
@@ -153,12 +158,13 @@
   </aside>
   <main id="main"></main>
 </div>
-<div id="modal-root"></div>
+<div id="modal-root" aria-live="polite"></div>
 
 <script src="js/core/schema.js"></script>
 <script src="js/core/migrations.js"></script>
 <script src="js/core/normalize.js"></script>
 <script src="js/core/validate.js"></script>
+<script src="js/core/state.js"></script>
 <script src="js/financial-core.js"></script>
 <script src="js/core/closing.js"></script>
 <script src="js/storage.js"></script>
@@ -230,6 +236,7 @@ const DEFAULT_DATA = {
 };
 
 let state = null;
+FinTrackState.bind({get:()=>state,set:next=>{state=next;}});
 let currentView = 'home';
 let lancFiltro = { mes: new Date().getMonth() + 1, ano: new Date().getFullYear(), categoriaId: 'todas', busca: '' };
 let balancoAno = new Date().getFullYear();
@@ -267,7 +274,7 @@ async function saveData(){
   }
 }
 
-function snapshotAtual(){ const s=JSON.parse(JSON.stringify(state)); delete s._backups; delete s.restauracaoDemo; return s; }
+function snapshotAtual(){ const s=JSON.parse(JSON.stringify(state)); delete s._backups; delete s.restauracaoDemo; delete s.modoDemo; return s; }
 async function registrarBackup(motivo){
   const item={id:uid('backup'),criadoEm:new Date().toISOString(),motivo,registros:state.lancamentos.length,dados:snapshotAtual()};
   const backups=[...(state._backups||[]),item].slice(-5); state._backups=backups;
@@ -395,7 +402,8 @@ function infoModal(title, message){ return FinTrackModal.info(title,message); }
 
 function render(){
   const main = document.getElementById('main');
-  main.innerHTML = FinTrackViews.render(currentView);
+  const demoBanner=state?.modoDemo?'<div class="demo-banner" role="status" aria-live="polite"><strong>MODO DEMO</strong><span>Nenhuma alteração neste modo representa seus dados pessoais.</span><button class="btn btn-ghost" id="btn-demo-restaurar">Restaurar meus dados</button></div>':'';
+  main.innerHTML = demoBanner + FinTrackViews.render(currentView);
   attachViewHandlers();
 }
 
@@ -405,14 +413,16 @@ function calcularSaudeFinanceira(mes,ano){
   const t=totaisDoMes(mes,ano), pendentes=state.lancamentos.filter(l=>l.status==='Pendente'&&serieEstaAtiva(l)&&naturezaLancamento(l)==='despesa');
   const vencidos=pendentes.filter(l=>(l.dataVencimento||l.data)<todayLocal()).length;
   const estouradas=state.categorias.filter(c=>c.tipo==='Saída'&&c.orcado>0&&gastoPorCategoria(c.id,mes,ano)>c.orcado).length;
-  let pontos=100, fatores=[];
-  if(t.saldo<0){pontos-=25;fatores.push('resultado mensal negativo');}
-  if(vencidos){pontos-=Math.min(25,vencidos*8);fatores.push(`${vencidos} vencimento(s) atrasado(s)`);}
-  if(estouradas){pontos-=Math.min(20,estouradas*5);fatores.push(`${estouradas} categoria(s) acima do orçamento`);}
-  if(t.receitas>0 && t.despesas/t.receitas>.7){pontos-=15;fatores.push('alto comprometimento da renda');}
   const invest=totalPorNatureza(mes,ano,'investimento');
-  if(invest>0){pontos=Math.min(100,pontos+5);fatores.push('houve investimento no mês');}
-  return {pontos:Math.max(0,Math.min(100,pontos)),fatores};
+  const componentes=[
+    {nome:'Resultado',max:25,pontos:t.saldo>=0?25:0,detalhe:t.saldo>=0?'O mês terminou positivo.':'O resultado mensal está negativo.'},
+    {nome:'Pendências',max:20,pontos:Math.max(0,20-Math.min(20,vencidos*6)),detalhe:vencidos?`${vencidos} vencimento(s) atrasado(s).`:'Nenhum vencimento atrasado.'},
+    {nome:'Orçamento',max:20,pontos:Math.max(0,20-Math.min(20,estouradas*7)),detalhe:estouradas?`${estouradas} categoria(s) acima do orçamento.`:'Categorias dentro do orçamento.'},
+    {nome:'Comprometimento',max:20,pontos:t.receitas>0&&t.despesas/t.receitas>.7?5:20,detalhe:t.receitas>0&&t.despesas/t.receitas>.7?'Despesas acima de 70% das receitas.':'Comprometimento sob controle.'},
+    {nome:'Investimentos',max:15,pontos:invest>0?15:8,detalhe:invest>0?'Houve investimento no período.':'Nenhum investimento registrado no período.'},
+  ];
+  const pontos=componentes.reduce((sum,item)=>sum+item.pontos,0),fatores=componentes.filter(item=>item.pontos<item.max).map(item=>item.detalhe);
+  return {pontos,fatores,componentes};
 }
 function gerarRecomendacoes(mes,ano){
   const t=totaisDoMes(mes,ano), pendentes=state.lancamentos.filter(l=>l.status==='Pendente'&&serieEstaAtiva(l)&&naturezaLancamento(l)==='despesa');
@@ -607,7 +617,7 @@ function criarDadosDemo(){
 
 function carregarDemo(){
   confirmAction('Substituir os dados atuais por três meses de demonstração?', async () => {
-    const anterior=snapshotAtual(); await registrarBackup('Antes da demonstração'); const backups=state._backups||[]; state=criarDadosDemo(); state._backups=backups; state.restauracaoDemo=anterior;
+    const anterior=snapshotAtual(); await registrarBackup('Antes da demonstração'); const backups=state._backups||[]; state=criarDadosDemo(); state._backups=backups; state.restauracaoDemo=anterior; state.modoDemo=true;
     await saveData();
     currentView='home';
     render();
@@ -618,7 +628,7 @@ function apagarDemo(){
   const quantidade=state.lancamentos.filter(l=>String(l.id).startsWith('demo-')).length;
   if(!quantidade) return;
   confirmAction(`Apagar ${quantidade} lançamento(s) da demonstração? Seus lançamentos reais serão preservados.`, async () => {
-    state.lancamentos=state.lancamentos.filter(l=>!String(l.id).startsWith('demo-'));
+    state.lancamentos=state.lancamentos.filter(l=>!String(l.id).startsWith('demo-')); state.modoDemo=false;
     await saveData();
     render();
   }, 'Apagar demonstração');
@@ -626,7 +636,7 @@ function apagarDemo(){
 
 function restaurarDadosAnteriores(){
   if(!state.restauracaoDemo) return;
-  confirmAction('Restaurar os dados salvos antes da demonstração?', async()=>{const backups=state._backups||[];state=normalizeData(state.restauracaoDemo);state._backups=backups;await saveData();render();},'Restaurar dados');
+  confirmAction('Restaurar os dados salvos antes da demonstração?', async()=>{const backups=state._backups||[];state=normalizeData(state.restauracaoDemo);state._backups=backups;state.modoDemo=false;await saveData();render();},'Restaurar dados');
 }
 function restaurarBackup(index){
   const b=(state._backups||[])[index]; if(!b) return;

@@ -6,6 +6,8 @@ function attachViewHandlers(){
   main.querySelectorAll('[data-action="go-lancamentos"]').forEach(b => b.onclick = () => setView('lancamentos'));
   const btnHomeNovo = document.getElementById('btn-home-novo');
   if(btnHomeNovo) btnHomeNovo.onclick = () => FinTrackFormLayer.open('lancamento',null);
+  const demoRestore=document.getElementById('btn-demo-restaurar');
+  if(demoRestore) demoRestore.onclick=restaurarDadosAnteriores;
   const btnMostrarLanc = document.getElementById('btn-mostrar-lancamentos');
   if(btnMostrarLanc) btnMostrarLanc.onclick = () => { lancMostrarTodos = !lancMostrarTodos; render(); };
 

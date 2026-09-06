@@ -4,7 +4,7 @@
   "private": true,
   "description": "FinTrack — controle financeiro pessoal local",
   "scripts": {
-    "test": "node tests/financial-core.test.js && node tests/storage.test.js && node tests/registries.test.js && node tests/ui-contracts.test.js && node tests/migrations.test.js && node tests/syntax.test.js",
+    "test": "node tests/financial-core.test.js && node tests/storage.test.js && node tests/registries.test.js && node tests/ui-contracts.test.js && node tests/migrations.test.js && node tests/regression.test.js && node tests/syntax.test.js",
     "test:syntax": "node tests/syntax.test.js"
   },
   "engines": {

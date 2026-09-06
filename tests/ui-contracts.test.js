@@ -19,6 +19,13 @@ assert.ok(html.includes('function importarCSV(e)'));
 assert.ok(html.includes('js/forms/payments.js'));
 assert.ok(html.includes('data-action="pay-card"'));
 assert.ok(html.includes('data-action="pay-divida"'));
+assert.ok(html.includes('js/core/state.js'));
+assert.ok(html.includes('MODO DEMO'));
+const home=fs.readFileSync('js/views/home.js','utf8');
+assert.ok(home.includes('Situação'));
+assert.ok(home.includes('Atenção e ação'));
+assert.ok(home.includes('Diagnóstico financeiro'));
+assert.ok(home.includes('role="progressbar"'));
 assert.ok(html.includes('Fatura atual'));
 
 const events = fs.readFileSync('js/ui/screen-events.js', 'utf8');

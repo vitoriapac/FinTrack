@@ -7,6 +7,7 @@ vm.createContext(context);
 vm.runInContext(fs.readFileSync('js/view-registry.js', 'utf8'), context);
 vm.runInContext(fs.readFileSync('js/forms/registry.js', 'utf8'), context);
 vm.runInContext(fs.readFileSync('js/ui/events.js', 'utf8'), context);
+vm.runInContext(fs.readFileSync('js/core/state.js', 'utf8'), context);
 const views = context.window.FinTrackViews;
 const forms = context.window.FinTrackForms;
 
@@ -17,5 +18,14 @@ assert.equal(views.names().join(','), 'sample');
 forms.register('sample', value => value + 1);
 assert.equal(forms.open('sample', 4), 5);
 assert.equal(forms.names().join(','), 'sample');
+
+let current={value:1};
+context.window.FinTrackState.bind({get:()=>current,set:next=>{current=next;}});
+let observed=0;
+const unsubscribe=context.window.FinTrackState.subscribe(next=>{observed=next.value;});
+context.window.FinTrackState.updateState(state=>({...state,value:state.value+2}));
+assert.equal(context.window.FinTrackState.getState().value,3);
+assert.equal(observed,3);
+unsubscribe();
 
 console.log('registry tests: OK');
