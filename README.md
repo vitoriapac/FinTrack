@@ -1,6 +1,6 @@
 # FinTrack
 
-Aplicação web local para controle financeiro pessoal, construída com HTML, CSS e JavaScript vanilla.
+FinTrack é um aplicativo web de controle financeiro pessoal construído em HTML, CSS e JavaScript puro (vanilla), sem frameworks e sem servidor — todos os dados ficam salvos localmente no seu navegador. Nasceu como uma adaptação de uma planilha de controle financeiro e cresceu para um app modular.
 
 ## Funcionalidades
 
