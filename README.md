@@ -49,9 +49,9 @@ npm test
 npm run test:browser
 ```
 
-A suíte cobre cálculos financeiros, persistência, migrações v1–v6, importação, deduplicação, quarentena, relacionamentos, transferências, pagamentos e reversões atômicas, juros, amortização, fechamentos, contratos de UI, separação de recursos e sintaxe dos módulos.
+A suíte cobre cálculos financeiros, persistência, migrações v1–v6, importação, deduplicação, quarentena, integridade bidirecional de operações, transferências, pagamentos e reversões atômicas, juros, amortização, fechamentos, contratos de UI, separação de recursos e sintaxe dos módulos.
 
-Os fluxos principais também são validados em navegador real com Playwright: navegação entre telas, abertura e fechamento de modal, validação acessível de formulário, foco por teclado, layout móvel e ausência de erros no console.
+Os fluxos principais também são validados em navegador real com Playwright: receita e despesa, baixa de pendência, transferência, investimento, pagamentos parciais e estornos de cartão, amortização e estorno de dívida, imutabilidade do fechamento, persistência, navegação, layout móvel e ausência de erros no console.
 
 ## Armazenamento e privacidade
 

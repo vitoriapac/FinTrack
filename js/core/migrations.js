@@ -39,8 +39,24 @@
     data.pagamentosCartao=(Array.isArray(data.pagamentosCartao)?data.pagamentosCartao:[]).map(payment=>({...payment,faturaId:payment.faturaId||`${payment.cartaoId||'cartao'}:${payment.invoiceKey||'sem-fatura'}`}));
     data.cartoes=(Array.isArray(data.cartoes)?data.cartoes:[]).map(card=>({...card,fechamento:card.fechamento==null?1:Number(card.fechamento),vencimento:card.vencimento==null?10:Number(card.vencimento)}));
     data.dividas=(Array.isArray(data.dividas)?data.dividas:[]).map(debt=>({...debt,juros:debt.juros==null?0:Number(debt.juros),parcelasRestantes:debt.parcelasRestantes==null?0:Number(debt.parcelasRestantes)}));
-    const operations=new Map((Array.isArray(data.operacoes)?data.operacoes:[]).filter(item=>item?.id).map(item=>[item.id,item]));
-    data.lancamentos.filter(item=>item.operacaoId).forEach(item=>{if(!operations.has(item.operacaoId)) operations.set(item.operacaoId,{id:item.operacaoId,tipo:item.tipoOperacao||item.natureza||'operacao',criadaEm:item.data});});
+    const operations=new Map((Array.isArray(data.operacoes)?data.operacoes:[]).filter(item=>item?.id).map(item=>[item.id,{...item}]));
+    data.lancamentos.filter(item=>item.operacaoId).forEach(item=>{
+      const linked=data.lancamentos.filter(candidate=>candidate.operacaoId===item.operacaoId),outgoing=linked.find(candidate=>candidate.movimentoTransferencia==='saida');
+      const current=operations.get(item.operacaoId)||{};
+      operations.set(item.operacaoId,{...current,id:item.operacaoId,tipo:current.tipo||item.tipoOperacao||item.natureza||'operacao',status:current.status||(item.status==='Pago'?'concluida':'pendente'),criadaEm:current.criadaEm||item.data,valor:current.valor??item.valor,contaId:current.contaId||outgoing?.contaId||item.contaId,referencias:current.referencias||(item.tipoOperacao==='transferencia'?{contaOrigemId:outgoing?.contaId,contaDestinoId:outgoing?.contaDestinoId}:item.tipoOperacao==='investimento'?{movimento:item.movimentoInvestimento}:{}),lancamentoIds:current.status==='estornada'?[]:[...new Set([...(current.lancamentoIds||[]),...linked.map(candidate=>candidate.id)])]});
+    });
+    data.pagamentosCartao=(Array.isArray(data.pagamentosCartao)?data.pagamentosCartao:[]).map(payment=>{
+      if(!payment.operacaoId) return payment;
+      const current=operations.get(payment.operacaoId)||{},entry=data.lancamentos.find(item=>item.id===payment.lancamentoId);
+      operations.set(payment.operacaoId,{...current,id:payment.operacaoId,tipo:'pagamento_cartao',status:current.status||'concluida',criadaEm:current.criadaEm||payment.data,valor:current.valor??payment.valor,contaId:current.contaId||payment.contaId,referencias:{...(current.referencias||{}),pagamentoId:payment.id,cartaoId:payment.cartaoId,invoiceKey:payment.invoiceKey},lancamentoIds:current.status==='estornada'?[]:[...new Set([...(current.lancamentoIds||[]),...(entry?[entry.id]:[])])]});
+      return payment;
+    });
+    data.pagamentosDividas=(Array.isArray(data.pagamentosDividas)?data.pagamentosDividas:[]).map(payment=>{
+      if(!payment.operacaoId) return payment;
+      const current=operations.get(payment.operacaoId)||{},entry=data.lancamentos.find(item=>item.id===payment.lancamentoId);
+      operations.set(payment.operacaoId,{...current,id:payment.operacaoId,tipo:'pagamento_divida',status:current.status||'concluida',criadaEm:current.criadaEm||payment.data,valor:current.valor??payment.valor,contaId:current.contaId||payment.contaId,referencias:{...(current.referencias||{}),pagamentoId:payment.id,dividaId:payment.dividaId},lancamentoIds:current.status==='estornada'?[]:[...new Set([...(current.lancamentoIds||[]),...(entry?[entry.id]:[])])]});
+      return payment;
+    });
     data.operacoes=[...operations.values()];
     data.schemaVersion=schema.version;
     data.__centsVersion=1;

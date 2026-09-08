@@ -163,7 +163,7 @@
 
   function reverseOperation(next,payment){
     if(payment.lancamentoId) next.lancamentos=(next.lancamentos||[]).filter(item=>item.id!==payment.lancamentoId);
-    if(payment.operacaoId) next.operacoes=(next.operacoes||[]).map(item=>item.id===payment.operacaoId?{...item,status:'estornada',estornadaEm:new Date().toISOString()}:item);
+    if(payment.operacaoId) next.operacoes=(next.operacoes||[]).map(item=>item.id===payment.operacaoId?{...item,status:'estornada',estornadaEm:new Date().toISOString(),lancamentoIds:[]}:item);
   }
 
   function reverseCardPayment(data,paymentId){

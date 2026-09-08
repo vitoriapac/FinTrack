@@ -38,4 +38,23 @@ assert.equal(invalidReport.valid,false);
 assert.ok(invalidReport.errors.some(item=>item.includes('fechamento inválido')));
 assert.ok(invalidReport.errors.some(item=>item.includes('juros inválidos')));
 assert.ok(invalidReport.errors.some(item=>item.includes('alvo inválido')));
+
+const orphanOperation=normalize({...base,operacoes:[{id:'op-orphan',tipo:'investimento',status:'concluida',criadaEm:'2026-09-01',valor:1000,contaId:'a',referencias:{movimento:'aporte'},lancamentoIds:['missing-entry']} ]});
+const orphanReport=validation.validateData(orphanOperation);
+assert.equal(orphanReport.valid,false);
+assert.ok(orphanReport.errors.some(item=>item.includes('missing-entry')));
+
+const brokenPayment=normalize({...base,
+  cartoes:[{id:'card',nome:'Cartão',limite:100000,fechamento:10,vencimento:20}],
+  lancamentos:[{id:'payment-entry',operacaoId:'op-card',tipoOperacao:'pagamento_cartao',natureza:'pagamento_cartao',tipo:'Despesa',data:'2026-09-10',descricao:'Pagamento',contaId:'a',valor:1000,status:'Pago'}],
+  operacoes:[{id:'op-card',tipo:'pagamento_cartao',status:'concluida',criadaEm:'2026-09-10',valor:1000,contaId:'a',referencias:{pagamentoId:'bad-payment',cartaoId:'missing-card',invoiceKey:'2026-09'},lancamentoIds:['payment-entry']}],
+  pagamentosCartao:[{id:'bad-payment',cartaoId:'missing-card',invoiceKey:'2026-09',contaId:'a',valor:1000,data:'2026-09-10',operacaoId:'op-card',lancamentoId:'payment-entry'}],
+});
+assert.equal(validation.validateData(brokenPayment).valid,false);
+const repairedPayment=validation.repairData(brokenPayment);
+assert.equal(repairedPayment.pagamentosCartao.length,0);
+assert.equal(repairedPayment.lancamentos.some(item=>item.id==='payment-entry'),false);
+assert.equal(repairedPayment.operacoes.some(item=>item.id==='op-card'),false);
+assert.ok(repairedPayment.quarentena.some(item=>item.origemId==='bad-payment'&&item.tipo==='pagamento_cartao_invalido'));
+assert.equal(validation.validateData(repairedPayment).valid,true);
 console.log('data integrity tests: OK');
