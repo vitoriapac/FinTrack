@@ -7,7 +7,7 @@ vm.createContext(context);
 for(const file of ['js/core/schema.js','js/core/migrations.js','js/core/normalize.js','js/core/validate.js','js/financial-core.js','js/core/closing.js']) vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
 const legacy=JSON.parse(fs.readFileSync('tests/fixtures/legacy-v1.json','utf8'));
 const current=context.window.FinTrackNormalize.normalizeData(legacy);
-assert.equal(current.schemaVersion,6);
+assert.equal(current.schemaVersion,7);
 assert.equal(current.contas[0].saldoInicial,10050);
 assert.equal(current.lancamentos[0].valor,2590);
 assert.equal(current.cartoes[0].limite,120000);
@@ -29,6 +29,7 @@ const fallback=context.window.FinTrackNormalize.normalizeData({
   lancamentos:[],
 });
 for(const key of ['metas','cartoes','dividas','pagamentosCartao','pagamentosDividas','historico','lixeira','operacoes','series']) assert.ok(Array.isArray(fallback[key]),`${key} deve ser uma lista`);
+for(const key of ['ativosInvestimento','despesasAnuais']) assert.deepEqual([...fallback[key]],[],`${key} deve ser adicionada vazia no schema v7`);
 for(const key of ['planejamentos','fechamentos']) {
   assert.equal(typeof fallback[key],'object',`${key} deve ser um objeto`);
   assert.equal(Object.keys(fallback[key]).length,0,`${key} deve começar vazio`);
@@ -46,7 +47,7 @@ assert.ok(context.window.FinTrackValidation.validateData(brokenTransfer).warning
 const closed=context.window.FinTrackClosing.createSnapshot(normalized,'2026-01',{observacao:'Fechamento de teste',fechadoEm:'2026-02-01T12:00:00.000Z'});
 assert.equal(closed.status,'fechado');
 assert.equal(closed.snapshot.receitas,500000);
-assert.equal(closed.snapshot.versao,3);
+assert.equal(closed.snapshot.versao,4);
 assert.ok(Array.isArray(closed.snapshot.contas));
 assert.ok(Array.isArray(closed.snapshot.lancamentosDetalhados));
 assert.equal(closed.snapshot.planejamento.receita,0);
@@ -68,7 +69,7 @@ assert.equal(v1Read.compatibilidade.orcamentoCompleto,false);
 const legacyV2=JSON.parse(fs.readFileSync('tests/fixtures/legacy-v2.json','utf8'));
 const legacyV2SnapshotBefore=JSON.stringify(legacyV2.fechamentos['2024-02'].snapshot);
 const migratedV2=context.window.FinTrackNormalize.normalizeData(legacyV2);
-assert.equal(migratedV2.schemaVersion,6);
+assert.equal(migratedV2.schemaVersion,7);
 assert.equal(migratedV2.lancamentos[0].valor,4550,'documento já em centavos não pode ser reconvertido');
 assert.equal(JSON.stringify(migratedV2.fechamentos['2024-02'].snapshot),legacyV2SnapshotBefore,'migração não pode recalcular snapshot v1');
 console.log('migration tests: OK');

@@ -13,7 +13,7 @@
       Object.entries(schema.moneyFields).forEach(([collection,fields])=>{data[collection]=mapCollection(data[collection],fields,false);});
     }
     data.categorias=(Array.isArray(data.categorias)?data.categorias:[]).map(category=>{
-      if(sourceVersion>=schema.version||category.natureza) return {...category};
+      if(sourceVersion>=6||category.natureza) return {...category};
       const name=String(category.nome||'').toLowerCase();
       return category.id==='cat-investimento'||category.id==='cat-transferencia'||name.includes('investimento')||name.includes('transferência')?{...category,natureza:'movimentacao'}:{...category};
     });
@@ -23,7 +23,7 @@
       if(!next.tipoOperacao){
         if(next.natureza==='transferencia') next.tipoOperacao='transferencia';
         else if(next.natureza==='investimento') next.tipoOperacao='investimento';
-        else if(sourceVersion<schema.version){
+        else if(sourceVersion<6){
           const legacyCategory=categories.get(next.categoriaId),legacyName=String(legacyCategory?.nome||'').toLowerCase();
           if(legacyCategory?.id==='cat-investimento'||legacyName.includes('investimento')) next.tipoOperacao='investimento';
           else if(legacyCategory?.id==='cat-transferencia'||legacyName.includes('transferência')) next.tipoOperacao='transferencia';

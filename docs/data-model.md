@@ -1,6 +1,6 @@
-# Modelo de dados — schema v6
+# Modelo de dados — schema v7
 
-O estado persistido é um documento JSON local. `schemaVersion: 6` e `__centsVersion: 1` identificam o contrato atual.
+O estado persistido é um documento JSON local. `schemaVersion: 7` e `__centsVersion: 1` identificam o contrato atual.
 
 | Coleção | Responsabilidade |
 | --- | --- |
@@ -8,6 +8,8 @@ O estado persistido é um documento JSON local. `schemaVersion: 6` e `__centsVer
 | `categorias` | classificação e orçamento mensal |
 | `lancamentos` | receitas, despesas, investimentos, transferências e liquidações |
 | `cartoes`, `dividas`, `metas` | cadastros financeiros auxiliares |
+| `ativosInvestimento` | saldo atual manual por ativo/instituição; operações são apenas histórico |
+| `despesasAnuais` | estimativas anuais usadas pela agenda e reserva mensal sugerida |
 | `pagamentosCartao`, `pagamentosDividas` | histórico de liquidações |
 | `operacoes` | envelope atômico e referências de movimentos compostos |
 | `planejamentos` | receita, investimento e orçamentos por `AAAA-MM` |

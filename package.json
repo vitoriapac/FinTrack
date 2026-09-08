@@ -1,10 +1,10 @@
 {
   "name": "fintrack",
-  "version": "1.9.9",
+  "version": "2.0.0",
   "private": true,
   "description": "FinTrack — controle financeiro pessoal local",
   "scripts": {
-    "test": "node tests/financial-core.test.js && node tests/storage.test.js && node tests/registries.test.js && node tests/services.test.js && node tests/data-integrity.test.js && node tests/architecture.test.js && node tests/ui-contracts.test.js && node tests/ui-smoke.test.js && node tests/migrations.test.js && node tests/regression.test.js && node tests/reporting.test.js && node tests/syntax.test.js",
+    "test": "node tests/financial-core.test.js && node tests/future-services.test.js && node tests/storage.test.js && node tests/registries.test.js && node tests/services.test.js && node tests/data-integrity.test.js && node tests/architecture.test.js && node tests/ui-contracts.test.js && node tests/ui-smoke.test.js && node tests/migrations.test.js && node tests/regression.test.js && node tests/reporting.test.js && node tests/syntax.test.js",
     "test:syntax": "node tests/syntax.test.js",
     "start:test": "node scripts/serve.mjs",
     "test:browser": "playwright test"

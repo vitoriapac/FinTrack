@@ -48,6 +48,8 @@ let lancFiltro = { mes: new Date().getMonth() + 1, ano: new Date().getFullYear()
 let balancoAno = new Date().getFullYear();
 let cadastroTab = 'categorias';
 let historicoMes = null;
+let planejamentoMes = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+let agendaTipo = 'todos';
 let lancMostrarTodos = false;
 
 /* ---------- Persistência ---------- */
@@ -301,8 +303,8 @@ function renderBarChart(receitas, despesas){
 }
 
 function mesAtualKey(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
-function fecharMes(){const key=mesAtualKey();if(mesFechado(`${key}-01`)){infoModal('Mês já fechado','Este mês já está fechado e suas alterações estão protegidas.');return;}const obs=prompt('Observação do fechamento (opcional):','');if(obs!==null){const closing=FinTrackClosing.createSnapshot(state,key,{observacao:obs,fechadoEm:new Date().toISOString()});FinTrackState.transaction(current=>({...current,fechamentos:{...current.fechamentos,[key]:closing}}));registrarHistorico('fechamento_mes',`Mês ${key} fechado`,{snapshot:closing.snapshot});saveData().then(render);}}
-function reabrirMes(){const key=mesAtualKey();if(!mesFechado(`${key}-01`))return;const motivo=prompt('Informe o motivo da reabertura:','Inclusão de lançamento atrasado.');if(motivo?.trim()){const closing=FinTrackClosing.reopen(state.fechamentos[key],{motivo:motivo.trim(),usuario:state.usuario?.nome||'local'});FinTrackState.transaction(current=>({...current,fechamentos:{...current.fechamentos,[key]:closing}}));registrarHistorico('reabertura_mes',`Mês ${key} reaberto`,{motivo:motivo.trim()});saveData().then(render);}}
+function fecharMes(){const key=planejamentoMes;if(mesFechado(`${key}-01`)){infoModal('Mês já fechado','Este mês já está fechado e suas alterações estão protegidas.');return;}const obs=prompt('Observação do fechamento (opcional):','');if(obs!==null){const closing=FinTrackClosing.createSnapshot(state,key,{observacao:obs,fechadoEm:new Date().toISOString()});FinTrackState.transaction(current=>({...current,fechamentos:{...current.fechamentos,[key]:closing}}));registrarHistorico('fechamento_mes',`Mês ${key} fechado`,{snapshot:closing.snapshot});saveData().then(render);}}
+function reabrirMes(){const key=planejamentoMes;if(!mesFechado(`${key}-01`))return;const motivo=prompt('Informe o motivo da reabertura:','Inclusão de lançamento atrasado.');if(motivo?.trim()){const closing=FinTrackClosing.reopen(state.fechamentos[key],{motivo:motivo.trim(),usuario:state.usuario?.nome||'local'});FinTrackState.transaction(current=>({...current,fechamentos:{...current.fechamentos,[key]:closing}}));registrarHistorico('reabertura_mes',`Mês ${key} reaberto`,{motivo:motivo.trim()});saveData().then(render);}}
 
 /* ================= CADASTRO ================= */
 

@@ -71,6 +71,12 @@ function attachViewHandlers(){
   });
 
   FinTrackFilters.bind(main);
+  const agendaFilter=document.getElementById('agenda-tipo');if(agendaFilter)agendaFilter.onchange=()=>{agendaTipo=agendaFilter.value;render();};
+  const planningMonth=document.getElementById('planejamento-mes');if(planningMonth)planningMonth.onchange=()=>{planejamentoMes=planningMonth.value;render();};
+  const copyPlanning=document.getElementById('btn-copiar-planejamento');if(copyPlanning)copyPlanning.onclick=async()=>{const source=addMonths(`${planejamentoMes}-01`,-1).slice(0,7);FinTrackState.replaceState(PlanningService.copy(state,source,planejamentoMes));await saveData();render();};
+  const newAsset=document.getElementById('btn-novo-ativo');if(newAsset)newAsset.onclick=async()=>{const nome=prompt('Nome do ativo:','');if(!nome?.trim())return;const instituicao=prompt('Instituição (opcional):','')||'',valor=toCents(prompt('Valor atual:','0'));if(valor<0)return;const ativo={id:uid('ativo'),nome:nome.trim(),instituicao:instituicao.trim(),valorAtual:valor,atualizadoEm:new Date().toISOString()};FinTrackState.replaceState(FinTrackServices.entities.upsert(state,'ativosInvestimento',ativo));await saveData();render();};
+  main.querySelectorAll('[data-action="del-ativo"]').forEach(button=>button.onclick=()=>confirmAction('Excluir este ativo?',async()=>{FinTrackState.replaceState(FinTrackServices.entities.remove(state,'ativosInvestimento',button.dataset.id));await saveData();render();}));
+  const annualExpense=document.getElementById('btn-nova-despesa-anual');if(annualExpense)annualExpense.onclick=async()=>{const nome=prompt('Nome da despesa anual:','');if(!nome?.trim())return;const valorEstimado=toCents(prompt('Valor estimado:','0')),mes=Number(prompt('Mês de vencimento (1 a 12):',String(new Date().getMonth()+1)));if(valorEstimado<=0||mes<1||mes>12)return;FinTrackState.replaceState(FinTrackServices.entities.upsert(state,'despesasAnuais',{id:uid('despesa-anual'),nome:nome.trim(),valorEstimado,mes}));await saveData();render();};
 
   const btnNovaCat = document.getElementById('btn-nova-categoria');
   if(btnNovaCat) btnNovaCat.onclick = () => FinTrackForms.open('categoria',null);
@@ -121,7 +127,7 @@ function attachViewHandlers(){
   const btnRestaurarDemo=document.getElementById('btn-restaurar-demo');
   if(btnRestaurarDemo) btnRestaurarDemo.onclick=restaurarDadosAnteriores;
   main.querySelectorAll('[data-action="restore-backup"]').forEach(b=>b.onclick=()=>restaurarBackup(Number(b.dataset.index)));
-  const salvarPlan=document.getElementById('btn-salvar-planejamento'); if(salvarPlan) salvarPlan.onclick=async()=>{const key=mesAtualKey();if(impedirAlteracaoMes(`${key}-01`))return;const planning={receita:toCents(document.getElementById('pl-receita').value),investimento:toCents(document.getElementById('pl-investimento').value),orcamentos:Object.fromEntries(state.categorias.map(c=>[c.id,toCents(document.getElementById('pl-cat-'+c.id).value)]))};FinTrackState.transaction(current=>({...current,planejamentos:{...current.planejamentos,[key]:planning}}));registrarHistorico('planejamento_salvo',`Planejamento salvo: ${key}`);await saveData();render();};
+  const salvarPlan=document.getElementById('btn-salvar-planejamento'); if(salvarPlan) salvarPlan.onclick=async()=>{const key=planejamentoMes;if(impedirAlteracaoMes(`${key}-01`))return;const planning={receita:toCents(document.getElementById('pl-receita').value),investimento:toCents(document.getElementById('pl-investimento').value),orcamentos:Object.fromEntries(state.categorias.filter(c=>c.tipo==='Saída'&&c.natureza!=='movimentacao').map(c=>[c.id,toCents(document.getElementById('pl-cat-'+c.id).value)]))};FinTrackState.transaction(current=>({...current,planejamentos:{...current.planejamentos,[key]:planning}}));registrarHistorico('planejamento_salvo',`Planejamento salvo: ${key}`);await saveData();render();};
   const fechar=document.getElementById('btn-fechar-mes'); if(fechar) fechar.onclick=fecharMes;
   const reabrir=document.getElementById('btn-reabrir-mes'); if(reabrir) reabrir.onclick=reabrirMes;
   const novaMetaBtn=document.getElementById('btn-nova-meta'); if(novaMetaBtn) novaMetaBtn.onclick=()=>FinTrackForms.open('meta');

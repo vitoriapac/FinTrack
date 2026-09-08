@@ -69,7 +69,7 @@ assert.deepEqual(
   {realizado:mixedSnapshot.realizado,pendente:mixedSnapshot.pendente,comprometido:mixedSnapshot.comprometido,disponivel:mixedSnapshot.disponivel},
   {realizado:30000,pendente:20000,comprometido:50000,disponivel:50000},
 );
-assert.equal(context.window.FinTrackClosing.createSnapshot(mixedBudget,'2026-01').snapshot.versao,3);
+assert.equal(context.window.FinTrackClosing.createSnapshot(mixedBudget,'2026-01').snapshot.versao,4);
 const stats=context.window.FinTrackClosing.historicalStats({
   '2026-01':{snapshot:{versao:3,receitas:10000,despesas:8000,investimentos:1000,resultado:1000}},
   '2026-03':{snapshot:{versao:3,receitas:20000,despesas:5000,investimentos:2000,resultado:13000}},

@@ -1,0 +1,7 @@
+(function(){
+  window.renderAgendaView=function(){
+    const today=todayLocal(),end=addMonths(today,12),items=AgendaService.project(state,{start:today,end},{tipo:agendaTipo});
+    return `<div class="page-header"><div class="page-heading"><h1 class="page-title">Agenda financeira</h1><p class="page-sub">Compromissos previstos nos próximos 12 meses, sem criar lançamentos</p></div><div class="field"><label for="agenda-tipo">Tipo</label><select id="agenda-tipo"><option value="todos">Todos</option><option value="receita" ${agendaTipo==='receita'?'selected':''}>Receitas</option><option value="despesa" ${agendaTipo==='despesa'?'selected':''}>Despesas</option></select></div></div><div class="section"><div class="section-head"><h2>Próximos eventos</h2><span class="stat-meta">${items.length} item(ns)</span></div>${items.length?`<table><thead><tr><th>Vencimento</th><th>Origem</th><th>Descrição</th><th>Status</th><th class="num">Valor</th></tr></thead><tbody>${items.map(item=>`<tr><td>${formatDate(item.vencimento)}</td><td>${esc(item.origem.replace('_',' '))}</td><td>${esc(item.titulo)}</td><td><span class="badge badge-pending">${esc(item.status)}</span></td><td class="num ${item.tipo==='receita'?'money-in':'money-out'}">${formatMoney(item.valor)}</td></tr>`).join('')}</tbody></table>`:emptyState('Agenda vazia','Cadastre pendências, parcelas, dívidas ou despesas anuais.')}</div>`;
+  };
+  FinTrackViews.register('agenda',()=>window.renderAgendaView());
+})();

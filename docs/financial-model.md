@@ -15,6 +15,10 @@ Este documento congela as regras financeiras da linha 1.x. Valores monetários s
 
 Orçamento realizado considera despesas operacionais pagas. Comprometido soma realizado e pendente; disponível é `orçado - comprometido`. Fechar um mês grava os valores calculados e as entidades necessárias em snapshot imutável. Telas e relatórios históricos leem o snapshot, sem recalcular com o estado atual.
 
+## Patrimônio
+
+Patrimônio líquido é a soma dos saldos das contas e dos valores atuais informados manualmente para ativos, menos os saldos das dívidas. Aportes e resgates permanecem no histórico de caixa e não inferem rentabilidade. Patrimônio não integra o resultado mensal; sua evolução começa em snapshots v4.
+
 ## Integridade
 
 Operações compostas (transferências e pagamentos) devem ser atômicas, balanceadas e referenciar entidades existentes. Importações inválidas são rejeitadas; inconsistências reparáveis são preservadas em quarentena com motivo.
