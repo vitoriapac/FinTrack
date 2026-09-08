@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 2,
+  "__centsVersion": 1,
+  "contas": [{"id":"conta-v2","nome":"Conta v2","saldoInicial":125000,"dataSaldoInicial":"2024-01-01"}],
+  "categorias": [{"id":"cat-v2","nome":"Casa","tipo":"Saída","orcado":60000}],
+  "lancamentos": [{"id":"lanc-v2","tipo":"Despesa","data":"2024-02-10","descricao":"Despesa preservada","contaId":"conta-v2","categoriaId":"cat-v2","valor":4550,"status":"Pago"}],
+  "fechamentos": {"2024-02":{"status":"fechado","mes":"2024-02","fechadoEm":"2024-03-01T00:00:00.000Z","snapshot":{"versao":1,"receitas":100000,"despesas":4550,"investimentos":0,"resultado":95450}}}
+}

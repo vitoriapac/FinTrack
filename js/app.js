@@ -363,7 +363,7 @@ function renderBackupTab(){
         </div>
         <div style="border-top:1px solid var(--line-soft);padding-top:14px;width:100%;">
           <h3 style="font-size:15px;margin:0 0 6px;">Dados de demonstração</h3>
-          <p style="margin:0 0 12px;color:var(--muted);font-size:13.5px;max-width:560px;">Carregue três meses de receitas, despesas, investimentos, transferências e vencimentos para conhecer todas as áreas do FinTrack.</p>
+          <p style="margin:0 0 12px;color:var(--muted);font-size:13.5px;max-width:560px;">Carregue seis meses de receitas, despesas, investimentos, transferências, vencimentos e fechamentos para conhecer todas as áreas do FinTrack.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;">
             <button class="btn btn-ghost" id="btn-carregar-demo">${temDemo ? 'Recarregar demonstração' : 'Carregar demonstração'}</button>
             ${temDemo ? '<button class="btn btn-danger" id="btn-apagar-demo">Apagar dados da demonstração</button>' : ''}
@@ -452,22 +452,33 @@ function criarDadosDemo(){
     const tipoOperacao=categoriaId==='cat-investimento'?'investimento':categoriaId==='cat-transferencia'?'transferencia':tipo==='Receita'?'receita':'despesa';
     base.lancamentos.push({id:uid('demo'),tipo,tipoOperacao,natureza:tipoOperacao==='investimento'||tipoOperacao==='transferencia'?tipoOperacao:undefined,movimentoInvestimento:tipoOperacao==='investimento'?'aporte':undefined,movimentoTransferencia:tipoOperacao==='transferencia'?'saida':undefined,data:mes+String(dia).padStart(2,'0'),dataVencimento:vencimento?mes+String(vencimento).padStart(2,'0'):undefined,descricao,contaId,categoriaId,valor,status,fixa:false});
   };
-  [-2,-1,0].forEach((offset,i)=>{
+  [-5,-4,-3,-2,-1,0].forEach((offset,i)=>{
     add(offset,5,'Salário','Receita','conta-bb','cat-receita',2000);
     add(offset,7,'Aluguel','Despesa','conta-inter','cat-moradia',650);
     add(offset,10,'Compras do mês','Despesa','conta-inter','cat-mercado',390+i*45);
     add(offset,12,'Assinaturas','Despesa','conta-inter','cat-assinaturas',39.90);
-    add(offset,15,'Aporte mensal','Despesa','conta-bb','cat-investimento',250+i*50);
-    add(offset,18,'Transferência entre contas','Despesa','conta-bb','cat-transferencia',180);
+    add(offset,15,'Aporte mensal','Despesa','conta-bb','cat-investimento',250+i*25);
     add(offset,22,'Transporte','Despesa','conta-inter','cat-transporte',85+i*10);
   });
+  add(-3,19,'Manutenção emergencial','Despesa','conta-inter','cat-moradia',2350);
   add(0,25,'Conta de energia','Despesa','conta-inter','cat-contas',145,'Pendente',25);
   add(-1,28,'Internet residencial','Despesa','conta-inter','cat-contas',99.90,'Pendente',28);
-  return normalizeData(base);
+  const cardMonth=addMonths(primeiro,-2).slice(0,7),cardDate=`${cardMonth}-12`;
+  base.cartoes=[{id:'demo-card','nome':'Cartão demonstração','limite':1800,fechamento:25,vencimento:5}];
+  base.dividas=[{id:'demo-debt','credor':'Crédito pessoal demonstração','saldo':1200,juros:1.5,parcelasRestantes:10,proximoVencimento:addMonths(primeiro,1).slice(0,8)+'10'}];
+  base.lancamentos.push({id:'demo-card-purchase',tipo:'Despesa',tipoOperacao:'despesa',data:cardDate,descricao:'Compra parcial no cartão',cartaoId:'demo-card',categoriaId:'cat-eletronicos',valor:480,status:'Pago',fixa:false});
+  let demo=normalizeData(base),sequence=0;
+  const demoId=prefix=>`demo-${prefix}-${++sequence}`;
+  const transfer=FinTrackServices.transfers.upsert(demo,{data:addMonths(primeiro,-1).slice(0,8)+'18',contaId:'conta-bb',contaDestinoId:'conta-inter',descricao:'Transferência entre contas',valor:18000,status:'Pago'},demoId);
+  demo=transfer.state;
+  demo=FinTrackServices.payments.card(demo,{id:'demo-card-payment',cartaoId:'demo-card',invoiceKey:cardMonth,contaId:'conta-inter',valor:20000,outstanding:48000,data:`${cardMonth}-28`,idFactory:demoId});
+  demo=FinTrackServices.payments.debt(demo,{id:'demo-debt-payment',dividaId:'demo-debt',contaId:'conta-bb',valor:30000,data:addMonths(primeiro,-1).slice(0,8)+'20',idFactory:demoId});
+  [-5,-4,-3,-2].forEach(offset=>{const key=addMonths(primeiro,offset).slice(0,7);demo.fechamentos[key]=FinTrackClosing.createSnapshot(demo,key,{observacao:'Fechamento da demonstração'});});
+  return demo;
 }
 
 function carregarDemo(){
-  confirmAction('Substituir os dados atuais por três meses de demonstração?', async () => {
+  confirmAction('Substituir os dados atuais por seis meses de demonstração?', async () => {
     const anterior=snapshotAtual(); await registrarBackup('Antes da demonstração'); const backups=state._backups||[]; FinTrackState.replaceState({...criarDadosDemo(),_backups:backups,restauracaoDemo:anterior,modoDemo:true});
     await saveData();
     currentView='home';

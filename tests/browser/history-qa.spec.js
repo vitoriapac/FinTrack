@@ -26,6 +26,20 @@ test('histórico identifica lacunas, estatísticas e snapshots legados sem recal
   expect(stored.orcamentoDetalhado[0].pendente).toBeUndefined();
 });
 
+test('demonstração de seis meses preserva integridade e quatro fechamentos',async({page})=>{
+  const result=await page.evaluate(()=>{
+    const demo=criarDadosDemo(),months=[...new Set(demo.lancamentos.map(item=>item.data?.slice(0,7)).filter(Boolean))];
+    return {months:months.length,closings:Object.keys(demo.fechamentos||{}).length,report:FinTrackValidation.validateData(demo),partial:(demo.pagamentosCartao||[])[0]?.valor,debtPayments:(demo.pagamentosDividas||[]).length,transfers:demo.lancamentos.filter(item=>item.tipoOperacao==='transferencia').length};
+  });
+  expect(result.months).toBeGreaterThanOrEqual(6);
+  expect(result.closings).toBe(4);
+  expect(result.partial).toBe(20000);
+  expect(result.debtPayments).toBe(1);
+  expect(result.transfers).toBe(2);
+  expect(result.report.valid).toBe(true);
+  expect(result.report.warnings).toEqual([]);
+});
+
 test('QA responsivo mantém a aplicação dentro de cinco viewports',async({page},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','Matriz executada uma vez no Chromium desktop');
   const sizes=[[1440,900],[1024,768],[768,900],[390,844],[360,800]];

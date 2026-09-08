@@ -60,4 +60,15 @@ assert.equal(JSON.stringify(legacySnapshot),legacyBefore,'leitura compatível n�
 assert.equal(legacyRead.compatibilidade.legado,true);
 assert.equal(legacyRead.orcamentoDetalhado[0].pendente,null);
 assert.equal(legacyRead.orcamentoDetalhado[0].comprometido,null);
+const v1Snapshot={receitas:10000,despesas:2500,investimentos:500,resultado:7000};
+const v1Before=JSON.stringify(v1Snapshot),v1Read=context.window.FinTrackClosing.readSnapshot(v1Snapshot);
+assert.equal(JSON.stringify(v1Snapshot),v1Before,'adaptador v1 não pode regravar o histórico');
+assert.equal(v1Read.compatibilidade.versaoOriginal,1);
+assert.equal(v1Read.compatibilidade.orcamentoCompleto,false);
+const legacyV2=JSON.parse(fs.readFileSync('tests/fixtures/legacy-v2.json','utf8'));
+const legacyV2SnapshotBefore=JSON.stringify(legacyV2.fechamentos['2024-02'].snapshot);
+const migratedV2=context.window.FinTrackNormalize.normalizeData(legacyV2);
+assert.equal(migratedV2.schemaVersion,6);
+assert.equal(migratedV2.lancamentos[0].valor,4550,'documento já em centavos não pode ser reconvertido');
+assert.equal(JSON.stringify(migratedV2.fechamentos['2024-02'].snapshot),legacyV2SnapshotBefore,'migração não pode recalcular snapshot v1');
 console.log('migration tests: OK');
