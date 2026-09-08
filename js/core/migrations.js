@@ -5,13 +5,34 @@
   const mapCollection=(collection,fields,convert)=>Array.isArray(collection)?mapMoney(collection,fields,convert):Object.fromEntries(Object.entries(collection||{}).map(([key,value])=>[key,mapMoney([value],fields,convert)[0]]));
   function migrateData(input){
     const data=clone(input),schema=window.FinTrackSchema||{version:6,moneyFields:{}};
+    const sourceVersion=Number(data.schemaVersion||0);
     const legacyCents=Boolean(data.__centsVersion)||Number(data.schemaVersion||0)>=2;
     if(!legacyCents){
       Object.entries(schema.moneyFields).forEach(([collection,fields])=>{data[collection]=mapCollection(data[collection],fields,true);});
     }else{
       Object.entries(schema.moneyFields).forEach(([collection,fields])=>{data[collection]=mapCollection(data[collection],fields,false);});
     }
-    data.lancamentos=(Array.isArray(data.lancamentos)?data.lancamentos:[]).map(item=>({...item}));
+    data.categorias=(Array.isArray(data.categorias)?data.categorias:[]).map(category=>{
+      if(sourceVersion>=schema.version||category.natureza) return {...category};
+      const name=String(category.nome||'').toLowerCase();
+      return category.id==='cat-investimento'||category.id==='cat-transferencia'||name.includes('investimento')||name.includes('transferência')?{...category,natureza:'movimentacao'}:{...category};
+    });
+    const categories=new Map(data.categorias.map(category=>[category.id,category]));
+    data.lancamentos=(Array.isArray(data.lancamentos)?data.lancamentos:[]).map(item=>{
+      const next={...item};
+      if(!next.tipoOperacao){
+        if(next.natureza==='transferencia') next.tipoOperacao='transferencia';
+        else if(next.natureza==='investimento') next.tipoOperacao='investimento';
+        else if(sourceVersion<schema.version){
+          const legacyCategory=categories.get(next.categoriaId),legacyName=String(legacyCategory?.nome||'').toLowerCase();
+          if(legacyCategory?.id==='cat-investimento'||legacyName.includes('investimento')) next.tipoOperacao='investimento';
+          else if(legacyCategory?.id==='cat-transferencia'||legacyName.includes('transferência')) next.tipoOperacao='transferencia';
+          else next.tipoOperacao=next.tipo==='Receita'?'receita':'despesa';
+        }
+        else next.tipoOperacao=next.tipo==='Receita'?'receita':'despesa';
+      }
+      return next;
+    });
     const installmentGroups=new Map();
     data.lancamentos.filter(item=>item.serieId&&item.serieTipo==='parcelamento').forEach(item=>{const group=installmentGroups.get(item.serieId)||[];group.push(item);installmentGroups.set(item.serieId,group);});
     installmentGroups.forEach(items=>{items.sort((a,b)=>(Number(a.parcelaAtual)||0)-(Number(b.parcelaAtual)||0)||String(a.data||'').localeCompare(String(b.data||'')));const originId=items[0]?.lancamentoOrigemId||items[0]?.id;items.forEach(item=>{item.lancamentoOrigemId=originId;});});

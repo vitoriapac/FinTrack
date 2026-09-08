@@ -61,6 +61,8 @@ O FinTrack foi projetado para uso local. Backups podem ser exportados manualment
 
 Valores monetários persistidos são armazenados como inteiros em centavos. O schema atual é a versão 6. Dados antigos passam por migração antes do uso; registros inseguros são isolados na quarentena exibida em Cadastro → Auditoria.
 
+O contrato financeiro distingue valores realizados (`status === Pago`) de pendentes (`status === Pendente`). Em orçamentos, `comprometido` é a soma de realizado e pendente, e `disponível` é o valor planejado menos o comprometido. Saldos de contas consideram apenas movimentos realizados; projeções acrescentam entradas pendentes e descontam saídas pendentes. Transferências, investimentos e pagamentos de cartão ou dívida são classificados por `tipoOperacao`, sem inferência por nome durante o uso normal da aplicação.
+
 ## CI
 
 O GitHub Actions executa os testes unitários e os cenários Playwright em Chromium, nas configurações desktop e mobile, em pushes para `main` e pull requests direcionados à branch `main`.

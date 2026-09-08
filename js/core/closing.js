@@ -11,8 +11,8 @@
     const budgets={...planning.orcamentos};
     (data.categorias||[]).filter(category=>category.tipo==='Saída'&&category.natureza!=='movimentacao').forEach(category=>{if(budgets[category.id]===undefined) budgets[category.id]=category.orcado||0;});
     const categoryById=id=>(data.categorias||[]).find(item=>item.id===id),accountById=id=>(data.contas||[]).find(item=>item.id===id);
-    const orcamentoDetalhado=Object.entries(budgets).map(([id,budget])=>{const category=categoryById(id),realizado=core.categorySpend(data,id,month,year),pendente=entries.filter(item=>item.categoriaId===id&&item.status==='Pendente'&&core.nature(data,item)==='despesa').reduce((sum,item)=>sum+Number(item.valor||0),0);return {categoriaId:id,categoriaNome:category?.nome||'Categoria removida',tipoGasto:category?.tipoGasto||'',orcado:Number(budget),realizado,pendente,disponivel:Number(budget)-realizado-pendente};});
-    const categoriasEstouradas=orcamentoDetalhado.filter(item=>item.orcado>0&&item.realizado>item.orcado);
+    const orcamentoDetalhado=Object.entries(budgets).map(([id,budget])=>{const category=categoryById(id),summary=core.budgetSummary(data,id,month,year,budget);return {categoriaId:id,categoriaNome:category?.nome||'Categoria removida',tipoGasto:category?.tipoGasto||'',orcado:summary.planejado,realizado:summary.realizado,pendente:summary.pendente,comprometido:summary.comprometido,disponivel:summary.disponivel,percentualRealizado:summary.percentualRealizado,percentualComprometido:summary.percentualComprometido,status:summary.status};});
+    const categoriasEstouradas=orcamentoDetalhado.filter(item=>item.status==='ultrapassado');
     const lancamentosDetalhados=entries.map(item=>({...clone(item),categoriaNome:categoryById(item.categoriaId)?.nome||'',contaNome:accountById(item.contaId)?.nome||''}));
     const endDate=`${key}-${String(new Date(year,month,0).getDate()).padStart(2,'0')}`;
     const contas=(data.contas||[]).map(account=>({id:account.id,nome:account.nome,saldo:core.accountBalance(data,account,endDate)}));

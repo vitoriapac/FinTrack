@@ -53,4 +53,20 @@ assert.equal(snapshot.snapshot.receitas,200000);
 assert.equal(snapshot.snapshot.despesas,60000);
 assert.equal(snapshot.snapshot.categoriasEstouradas.length,1);
 assert.equal(snapshot.snapshot.orcamentos.d,50000);
+
+const mixedBudget=base({planejamentos:{'2026-01':{receita:0,investimento:0,orcamentos:{d:100000}}},lancamentos:[
+  {id:'paid',tipo:'Despesa',tipoOperacao:'despesa',data:'2026-01-06',contaId:'a',categoriaId:'d',valor:30000,status:'Pago'},
+  {id:'pending',tipo:'Despesa',tipoOperacao:'despesa',data:'2026-01-07',contaId:'a',categoriaId:'d',valor:20000,status:'Pendente'},
+]});
+const mixedSummary=core.budgetSummary(mixedBudget,'d',1,2026,100000);
+const mixedSnapshot=context.window.FinTrackClosing.createSnapshot(mixedBudget,'2026-01').snapshot.orcamentoDetalhado[0];
+assert.deepEqual(
+  {realizado:mixedSnapshot.realizado,pendente:mixedSnapshot.pendente,comprometido:mixedSnapshot.comprometido,disponivel:mixedSnapshot.disponivel},
+  {realizado:mixedSummary.realizado,pendente:mixedSummary.pendente,comprometido:mixedSummary.comprometido,disponivel:mixedSummary.disponivel},
+  'núcleo e fechamento devem usar o mesmo contrato de orçamento',
+);
+assert.deepEqual(
+  {realizado:mixedSnapshot.realizado,pendente:mixedSnapshot.pendente,comprometido:mixedSnapshot.comprometido,disponivel:mixedSnapshot.disponivel},
+  {realizado:30000,pendente:20000,comprometido:50000,disponivel:50000},
+);
 console.log('regression tests: OK');

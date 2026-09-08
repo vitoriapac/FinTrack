@@ -29,7 +29,7 @@
         const error=document.getElementById('inv-error'),value=toCents(document.getElementById('inv-valor').value),asset=document.getElementById('inv-ativo').value.trim(),institution=document.getElementById('inv-instituicao').value.trim(),data=document.getElementById('inv-data').value;
         if(impedirAlteracaoMes(data))return;
         const fieldErrors={};if(value<=0)fieldErrors['inv-valor']='Informe um valor maior que zero.';if(!asset)fieldErrors['inv-ativo']='Informe o tipo do ativo.';if(!FinTrackFormValidation.show(fieldErrors,'inv-error'))return;
-        const movement=document.getElementById('inv-tipo').value,category=state.categorias.find(item=>item.id==='cat-investimento')||state.categorias.find(item=>String(item.nome||'').toLowerCase().includes('investimento'));
+        const movement=document.getElementById('inv-tipo').value,category=state.categorias.find(item=>item.id==='cat-investimento');
         const result=FinTrackServices.investments.register(state,{movimentoInvestimento:movement,data,descricao:document.getElementById('inv-descricao').value.trim()||`${movement==='aporte'?'Aporte':'Resgate'} · ${asset}`,contaId:document.getElementById('inv-conta').value,categoriaId:category?.id,valor:value,status:document.getElementById('inv-status').value,ativo:asset,instituicao:institution},uid);
         FinTrackState.replaceState(result.state);registrarHistorico('criacao_investimento',`${movement==='aporte'?'Aporte':'Resgate'} registrado: ${asset}`,{operacaoId:result.operationId,valor:value,instituicao:institution});await saveData();closeModal();render();
       };

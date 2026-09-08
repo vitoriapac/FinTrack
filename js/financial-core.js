@@ -1,7 +1,7 @@
 (function(){
   'use strict';
 
-  const CORE_VERSION = '1.1.0';
+  const CORE_VERSION = '1.2.0';
   const clone = value => JSON.parse(JSON.stringify(value));
   const toCents = value => Math.round(Number(value || 0) * 100);
 
@@ -14,10 +14,7 @@
       data.lancamentos=(data.lancamentos||[]).map(l=>({...l,valor:toCents(l.valor)}));
       data.__centsVersion=1;
     }
-    data.categorias=(data.categorias||[]).map(c=>{
-      const nome=String(c.nome||'').toLowerCase();
-      return (c.id==='cat-investimento'||c.id==='cat-transferencia'||nome.includes('investimento')||nome.includes('transferência')) ? {...c,natureza:'movimentacao'} : c;
-    });
+    data.categorias=(data.categorias||[]).map(c=>(c.id==='cat-investimento'||c.id==='cat-transferencia')?{...c,natureza:'movimentacao'}:c);
     data.lixeira=data.lixeira||[];
     data.quarentena=data.quarentena||[];
     data.historico=data.historico||[];
@@ -48,12 +45,8 @@
   function category(data,id){ return (data.categorias||[]).find(c=>c.id===id); }
   function account(data,id){ return (data.contas||[]).find(c=>c.id===id); }
   function nature(data,l){
-    if(l.natureza==='transferencia'||l.tipoOperacao==='transferencia') return 'transferencia';
-    if(l.natureza==='pagamento_cartao'||l.tipoOperacao==='pagamento_cartao') return 'pagamento_cartao';
-    if(l.natureza==='pagamento_divida'||l.tipoOperacao==='pagamento_divida') return 'pagamento_divida';
-    const c=category(data,l.categoriaId);
-    if(l.tipoOperacao==='investimento'||c?.id==='cat-investimento'||String(c?.nome||'').toLowerCase().includes('investimento')) return 'investimento';
-    if(c?.natureza==='movimentacao') return 'transferencia';
+    if(['transferencia','pagamento_cartao','pagamento_divida','investimento','receita','despesa'].includes(l.tipoOperacao)) return l.tipoOperacao;
+    if(['transferencia','pagamento_cartao','pagamento_divida','investimento'].includes(l.natureza)) return l.natureza;
     return l.tipo==='Receita' ? 'receita' : 'despesa';
   }
   function seriesActive(data,l,today){
@@ -82,11 +75,23 @@
     const investimentosRealizados=investment('Pago'),investimentosPendentes=investment('Pendente');
     return {receitasRealizadas,receitasPendentes,despesasRealizadas,despesasPendentes,investimentosRealizados,investimentosPendentes,resultadoRealizado:receitasRealizadas-despesasRealizadas,saldoProjetado:receitasRealizadas+receitasPendentes-despesasRealizadas-despesasPendentes};
   }
-  function totalByNature(data,mes,ano,target,today){
-    return monthEntries(data,mes,ano,today).filter(l=>nature(data,l)===target && !(target==='transferencia'&&l.movimentoTransferencia==='entrada')).reduce((s,l)=>s+(target==='investimento'&&l.movimentoInvestimento==='resgate'?-Number(l.valor):Number(l.valor)),0);
+  function totalByNature(data,mes,ano,target,today,options={}){
+    const status=typeof options==='string'?options:options?.status;
+    return monthEntries(data,mes,ano,today).filter(l=>nature(data,l)===target&&(!status||l.status===status)&&!(target==='transferencia'&&l.movimentoTransferencia==='entrada')).reduce((s,l)=>s+(target==='investimento'&&l.movimentoInvestimento==='resgate'?-Number(l.valor):Number(l.valor)),0);
   }
-  function categorySpend(data,id,mes,ano,today){
-    return monthEntries(data,mes,ano,today).filter(l=>l.categoriaId===id&&nature(data,l)==='despesa').reduce((s,l)=>s+Number(l.valor),0);
+  function categorySpend(data,id,mes,ano,today,options={status:'Pago'}){
+    const status=typeof options==='string'?options:options?.status;
+    return monthEntries(data,mes,ano,today).filter(l=>l.categoriaId===id&&nature(data,l)==='despesa'&&(!status||l.status===status)).reduce((s,l)=>s+Number(l.valor),0);
+  }
+  function budgetSummary(data,id,mes,ano,planejado,today){
+    const planned=Math.max(0,Number(planejado??category(data,id)?.orcado??0));
+    const realizado=categorySpend(data,id,mes,ano,today,{status:'Pago'});
+    const pendente=categorySpend(data,id,mes,ano,today,{status:'Pendente'});
+    const comprometido=realizado+pendente,disponivel=planned-comprometido;
+    const percentualRealizado=planned?Math.round(realizado/planned*100):0;
+    const percentualComprometido=planned?Math.round(comprometido/planned*100):0;
+    const status=planned&&comprometido*100>=planned*100?'ultrapassado':planned&&comprometido*100>=planned*80?'atencao':planned&&comprometido*100>=planned*70?'acompanhamento':'normal';
+    return {planejado:planned,realizado,pendente,comprometido,disponivel,percentualRealizado,percentualComprometido,status};
   }
   function accountBalance(data,conta,today){
     const movimentos=(data.lancamentos||[]).filter(l=>l.contaId===conta.id&&l.status==='Pago'&&l.data>=conta.dataSaldoInicial&&seriesActive(data,l,today));
@@ -142,5 +147,5 @@
     return {payment,interest,interestPaid,amortization,newBalance:principal-amortization};
   }
 
-  window.FinTrackCore={version:CORE_VERSION,normalizeData,nature,monthEntries,totals,financialSummary,totalByNature,categorySpend,accountBalance,cardInvoice,debtProjection,debtPaymentBreakdown,category,account,seriesActive,toCents};
+  window.FinTrackCore={version:CORE_VERSION,normalizeData,nature,monthEntries,totals,financialSummary,totalByNature,categorySpend,budgetSummary,accountBalance,cardInvoice,debtProjection,debtPaymentBreakdown,category,account,seriesActive,toCents};
 })();

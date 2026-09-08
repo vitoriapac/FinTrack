@@ -36,6 +36,11 @@ for(const key of ['planejamentos','fechamentos']) {
 assert.equal(fallback.categorias[0].orcado,45000);
 assert.equal(fallback.contas[0].saldoInicial,3000);
 
+const legacyNamed=context.window.FinTrackNormalize.normalizeData({schemaVersion:5,__centsVersion:1,categorias:[{id:'legacy-invest',nome:'Investimentos antigos',tipo:'Saída',orcado:0}],contas:[{id:'a',saldoInicial:0,dataSaldoInicial:'2026-01-01'}],lancamentos:[{id:'legacy-invest-entry',tipo:'Despesa',categoriaId:'legacy-invest',contaId:'a',data:'2026-01-01',valor:100,status:'Pago'}]});
+assert.equal(legacyNamed.lancamentos[0].tipoOperacao,'investimento','migração deve materializar a heurística legada');
+const currentNamed=context.window.FinTrackNormalize.normalizeData({schemaVersion:6,__centsVersion:1,categorias:[{id:'course',nome:'Curso de investimentos',tipo:'Saída',orcado:0}],contas:[{id:'a',saldoInicial:0,dataSaldoInicial:'2026-01-01'}],lancamentos:[{id:'course-entry',tipo:'Despesa',categoriaId:'course',contaId:'a',data:'2026-01-01',valor:100,status:'Pago'}]});
+assert.equal(currentNamed.lancamentos[0].tipoOperacao,'despesa','dados atuais não devem inferir operação pelo nome');
+
 const brokenTransfer={...normalized,lancamentos:[...normalized.lancamentos,{id:'transfer-out',tipo:'Despesa',tipoOperacao:'transferencia',natureza:'transferencia',movimentoTransferencia:'saida',operacaoId:'op-broken',valor:100,data:'2026-02-10',contaId:'a'}]};
 assert.ok(context.window.FinTrackValidation.validateData(brokenTransfer).warnings.some(item=>item.includes('transferência incompleta')));
 const closed=context.window.FinTrackClosing.createSnapshot(normalized,'2026-01',{observacao:'Fechamento de teste',fechadoEm:'2026-02-01T12:00:00.000Z'});

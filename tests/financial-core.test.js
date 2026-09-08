@@ -39,6 +39,21 @@ const forecast=data([
 ]);
 const summary=core.financialSummary(forecast,9,2026,'2026-09-05');
 assert.deepEqual({...summary},{receitasRealizadas:10000,receitasPendentes:5000,despesasRealizadas:4000,despesasPendentes:2000,investimentosRealizados:0,investimentosPendentes:0,resultadoRealizado:6000,saldoProjetado:9000});
+const budget=core.budgetSummary(forecast,'d',9,2026,100000,'2026-09-05');
+assert.deepEqual({...budget},{planejado:100000,realizado:4000,pendente:2000,comprometido:6000,disponivel:94000,percentualRealizado:4,percentualComprometido:6,status:'normal'});
+assert.equal(core.categorySpend(forecast,'d',9,2026,'2026-09-05'),4000,'gasto por categoria representa somente o realizado');
+assert.equal(core.categorySpend(forecast,'d',9,2026,'2026-09-05',{status:'Pendente'}),2000);
+assert.equal(core.totalByNature(forecast,9,2026,'despesa','2026-09-05',{status:'Pago'}),4000);
+assert.equal(core.totalByNature(forecast,9,2026,'despesa','2026-09-05',{status:'Pendente'}),2000);
+
+for(const [value,status] of [[6999,'normal'],[7000,'acompanhamento'],[8000,'atencao'],[10000,'ultrapassado']]){
+  const thresholdData=data([{id:`budget-${value}`,tipo:'Despesa',tipoOperacao:'despesa',data:'2026-09-03',categoriaId:'d',contaId:'a',valor:value/100,status:'Pago'}]);
+  assert.equal(core.budgetSummary(thresholdData,'d',9,2026,10000,'2026-09-05').status,status);
+}
+
+const misleadingCategory=data([{id:'course',tipo:'Despesa',tipoOperacao:'despesa',data:'2026-09-03',categoriaId:'d',contaId:'a',valor:10,status:'Pago'}]);
+misleadingCategory.categorias.find(item=>item.id==='d').nome='Curso de investimentos';
+assert.equal(core.nature(misleadingCategory,misleadingCategory.lancamentos[0]),'despesa','nome da categoria não redefine a operação');
 
 const transfer = data([
   { id: 't1', tipoOperacao: 'transferencia', natureza: 'transferencia', movimentoTransferencia: 'saida', tipo: 'Despesa', data: '2026-09-01', contaId: 'a', contaDestinoId: 'b', valor: 50, status: 'Pago', operacaoId: 'op1' },

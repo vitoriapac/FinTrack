@@ -130,7 +130,7 @@ function formatDate(iso){
 function catById(id){ return window.FinTrackCore.category(state,id); }
 function contaById(id){ return window.FinTrackCore.account(state,id); }
 function naturezaLancamento(l){ return window.FinTrackCore.nature(state,l); }
-function totalPorNatureza(mes,ano,natureza){ return window.FinTrackCore.totalByNature(state,mes,ano,natureza,todayLocal()); }
+function totalPorNatureza(mes,ano,natureza,status){ return window.FinTrackCore.totalByNature(state,mes,ano,natureza,todayLocal(),status?{status}:{}); }
 
 function lancamentosDoMes(mes, ano){
   return window.FinTrackCore.monthEntries(state,mes,ano,todayLocal());
@@ -144,8 +144,9 @@ function resumoFinanceiroDoMes(mes,ano){
 }
 
 function gastoPorCategoria(categoriaId, mes, ano){
-  return window.FinTrackCore.categorySpend(state,categoriaId,mes,ano,todayLocal());
+  return window.FinTrackCore.budgetSummary(state,categoriaId,mes,ano,undefined,todayLocal()).comprometido;
 }
+function resumoOrcamento(categoriaId,mes,ano,planejado){ return window.FinTrackCore.budgetSummary(state,categoriaId,mes,ano,planejado,todayLocal()); }
 
 function saldoAtualConta(conta){
   return window.FinTrackCore.accountBalance(state,conta,todayLocal());
@@ -234,7 +235,7 @@ function calcularSaudeFinanceira(mes,ano){
   const t=totaisDoMes(mes,ano), pendentes=state.lancamentos.filter(l=>l.status==='Pendente'&&serieEstaAtiva(l)&&naturezaLancamento(l)==='despesa');
   const vencidos=pendentes.filter(l=>(l.dataVencimento||l.data)<todayLocal()).length;
   const estouradas=state.categorias.filter(c=>c.tipo==='Saída'&&c.orcado>0&&gastoPorCategoria(c.id,mes,ano)>c.orcado).length;
-  const invest=totalPorNatureza(mes,ano,'investimento');
+  const invest=totalPorNatureza(mes,ano,'investimento','Pago');
   const componentes=[
     {nome:'Resultado',max:25,pontos:t.saldo>=0?25:0,detalhe:t.saldo>=0?'O mês terminou positivo.':'O resultado mensal está negativo.'},
     {nome:'Pendências',max:20,pontos:Math.max(0,20-Math.min(20,vencidos*6)),detalhe:vencidos?`${vencidos} vencimento(s) atrasado(s).`:'Nenhum vencimento atrasado.'},
@@ -448,7 +449,8 @@ function criarDadosDemo(){
   const primeiro=hoje.slice(0,8)+'01';
   const add=(offset,dia,descricao,tipo,contaId,categoriaId,valor,status='Pago',vencimento)=>{
     const mes=addMonths(primeiro,offset).slice(0,8);
-    base.lancamentos.push({id:uid('demo'),tipo,data:mes+String(dia).padStart(2,'0'),dataVencimento:vencimento?mes+String(vencimento).padStart(2,'0'):undefined,descricao,contaId,categoriaId,valor,status,fixa:false});
+    const tipoOperacao=categoriaId==='cat-investimento'?'investimento':categoriaId==='cat-transferencia'?'transferencia':tipo==='Receita'?'receita':'despesa';
+    base.lancamentos.push({id:uid('demo'),tipo,tipoOperacao,natureza:tipoOperacao==='investimento'||tipoOperacao==='transferencia'?tipoOperacao:undefined,movimentoInvestimento:tipoOperacao==='investimento'?'aporte':undefined,movimentoTransferencia:tipoOperacao==='transferencia'?'saida':undefined,data:mes+String(dia).padStart(2,'0'),dataVencimento:vencimento?mes+String(vencimento).padStart(2,'0'):undefined,descricao,contaId,categoriaId,valor,status,fixa:false});
   };
   [-2,-1,0].forEach((offset,i)=>{
     add(offset,5,'Salário','Receita','conta-bb','cat-receita',2000);
