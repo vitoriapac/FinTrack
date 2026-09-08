@@ -51,7 +51,7 @@ npm run test:browser
 
 A suíte cobre cálculos financeiros, persistência, migrações v1–v6, importação, deduplicação, quarentena, integridade bidirecional de operações, transferências, pagamentos e reversões atômicas, juros, amortização, fechamentos, contratos de UI, separação de recursos e sintaxe dos módulos.
 
-Os fluxos principais também são validados em navegador real com Playwright: receita e despesa, baixa de pendência, transferência, investimento, pagamentos parciais e estornos de cartão, amortização e estorno de dívida, imutabilidade do fechamento, persistência, navegação, layout móvel e ausência de erros no console.
+Os fluxos principais também são validados em navegador real com Playwright: receita e despesa, baixa de pendência, transferência, investimento, pagamentos parciais e estornos de cartão, amortização e estorno de dívida, imutabilidade do fechamento, persistência, navegação, layout móvel e ausência de erros no console. A matriz de QA cobre larguras de 1440, 1024, 768, 390 e 360 pixels, além de nomes acessíveis, IDs únicos e estrutura dos diálogos.
 
 ## Armazenamento e privacidade
 
@@ -59,7 +59,7 @@ O FinTrack foi projetado para uso local. Backups podem ser exportados manualment
 
 ## Modelo financeiro
 
-Valores monetários persistidos são armazenados como inteiros em centavos. O schema atual é a versão 6. Dados antigos passam por migração antes do uso; registros inseguros são isolados na quarentena exibida em Cadastro → Auditoria.
+Valores monetários persistidos são armazenados como inteiros em centavos. O schema atual é a versão 6 e novos fechamentos usam snapshots versão 3. Dados antigos passam por migração antes do uso; snapshots históricos anteriores são lidos por compatibilidade sem recálculo ou alteração, e registros inseguros são isolados na quarentena exibida em Cadastro → Auditoria.
 
 O contrato financeiro distingue valores realizados (`status === Pago`) de pendentes (`status === Pendente`). Em orçamentos, `comprometido` é a soma de realizado e pendente, e `disponível` é o valor planejado menos o comprometido. Saldos de contas consideram apenas movimentos realizados; projeções acrescentam entradas pendentes e descontam saídas pendentes. Transferências, investimentos e pagamentos de cartão ou dívida são classificados por `tipoOperacao`, sem inferência por nome durante o uso normal da aplicação.
 

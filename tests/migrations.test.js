@@ -46,11 +46,18 @@ assert.ok(context.window.FinTrackValidation.validateData(brokenTransfer).warning
 const closed=context.window.FinTrackClosing.createSnapshot(normalized,'2026-01',{observacao:'Fechamento de teste',fechadoEm:'2026-02-01T12:00:00.000Z'});
 assert.equal(closed.status,'fechado');
 assert.equal(closed.snapshot.receitas,500000);
-assert.equal(closed.snapshot.versao,2);
+assert.equal(closed.snapshot.versao,3);
 assert.ok(Array.isArray(closed.snapshot.contas));
 assert.ok(Array.isArray(closed.snapshot.lancamentosDetalhados));
 assert.equal(closed.snapshot.planejamento.receita,0);
 const reopened=context.window.FinTrackClosing.reopen(closed,{quando:'2026-02-02T12:00:00.000Z',motivo:'Ajuste auditável',usuario:'Teste'});
 assert.equal(reopened.status,'aberto');
 assert.equal(reopened.reaberturas[0].motivo,'Ajuste auditável');
+
+const legacySnapshot={versao:2,receitas:10000,despesas:7000,investimentos:1000,resultado:2000,orcamentoDetalhado:[{categoriaNome:'Mercado',orcado:5000,realizado:3000,disponivel:2000}]};
+const legacyBefore=JSON.stringify(legacySnapshot),legacyRead=context.window.FinTrackClosing.readSnapshot(legacySnapshot);
+assert.equal(JSON.stringify(legacySnapshot),legacyBefore,'leitura compatível não pode modificar o snapshot histórico');
+assert.equal(legacyRead.compatibilidade.legado,true);
+assert.equal(legacyRead.orcamentoDetalhado[0].pendente,null);
+assert.equal(legacyRead.orcamentoDetalhado[0].comprometido,null);
 console.log('migration tests: OK');

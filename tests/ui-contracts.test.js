@@ -59,6 +59,10 @@ assert.ok(fs.readFileSync('js/views/planejamento.js','utf8').includes('Acompanha
 assert.ok(fs.readFileSync('js/views/historico.js','utf8').includes('lancamentosDetalhados'));
 assert.ok(fs.readFileSync('js/views/historico.js','utf8').includes('data-action="export-closing-pdf"'));
 assert.ok(fs.readFileSync('js/views/lancamentos.js','utf8').includes('transaction-mobile-list'));
+const history=fs.readFileSync('js/views/historico.js','utf8');
+assert.ok(history.includes('Estatísticas dos fechamentos'));
+assert.ok(history.includes('último mês fechado'));
+assert.ok(history.includes('Snapshot legado'));
 assert.ok(fs.readFileSync('js/ui/productivity.js','utf8').includes("event.key.toLowerCase()==='k'"));
 const cadastro=fs.readFileSync('js/views/cadastro.js','utf8');
 assert.ok(cadastro.includes('Categorias'));
