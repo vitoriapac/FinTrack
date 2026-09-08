@@ -39,7 +39,7 @@ assert.ok(app.includes('foi revertida integralmente'));
 assert.ok(app.includes('MODO DEMO'));
 const home=fs.readFileSync('js/views/home.js','utf8');
 assert.ok(home.includes('Situação'));
-assert.ok(home.includes('Atenção e ação'));
+assert.ok(home.includes('Insights determinísticos'));
 assert.ok(home.includes('Diagnóstico financeiro'));
 assert.ok(home.includes('role="progressbar"'));
 assert.ok(app.includes('Fatura atual'));

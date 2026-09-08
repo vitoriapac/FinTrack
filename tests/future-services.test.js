@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const context={window:{}};vm.createContext(context);
-for(const file of ['js/financial-core.js','js/services/future.js','js/core/closing.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
+for(const file of ['js/financial-core.js','js/services/future.js','js/services/insights.js','js/core/closing.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
 const data={
   contas:[{id:'a',nome:'Conta',saldoInicial:100000,dataSaldoInicial:'2026-01-01'}],categorias:[],
   lancamentos:[
@@ -31,4 +31,6 @@ const goalSummary=context.window.GoalService.summary(goalData,goal,'2026-09-15')
 const projected=context.window.ProjectionService.project(data,'2026-10',3);
 assert.equal(projected.meses.length,3);assert.equal(projected.meses[0].entradas,20000);assert.ok(projected.meses[0].saidas>=13000);assert.equal(JSON.stringify(projected.cenario),'{}');assert.ok(projected.aviso.includes('Estimativa'));
 const scenario=context.window.ProjectionService.project(data,'2026-10',3,{gastoMensal:10000});assert.equal(scenario.meses[2].saldoFinal,projected.meses[2].saldoFinal-30000);assert.equal(JSON.stringify(data),JSON.stringify({...data}));
+const insightData={...data,metas:[],categorias:[{id:'food',nome:'Mercado',tipo:'Saída',orcado:10000}],lancamentos:[{id:'late',tipo:'Despesa',tipoOperacao:'despesa',categoriaId:'food',contaId:'a',data:'2026-08-01',dataVencimento:'2026-08-10',valor:15000,status:'Pendente'}],dividas:[{id:'debt',credor:'Banco',saldo:500000,proximoVencimento:'2026-10-10'}]};
+const insights=context.window.InsightService.detect(insightData,{today:'2026-09-15',limit:5});assert.ok(insights.length>=2);assert.ok(insights.length<=5);for(const item of insights)for(const field of ['tipo','severidade','titulo','mensagem','evidencia','acao'])assert.ok(item[field],`insight deve expor ${field}`);assert.ok(insights.some(item=>item.tipo==='atrasos'));assert.ok(insights.some(item=>item.tipo==='dividas'));
 console.log('future services tests: OK');
