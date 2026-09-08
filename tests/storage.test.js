@@ -15,6 +15,7 @@ const storage = context.window.FinTrackStorage;
   await storage.set('sample', { value: 42 });
   assert.equal((await storage.get('sample')).value, 42);
   assert.equal((await storage.load('missing', { fallback: true })).fallback, true);
+  assert.equal(storage.adapter,'PlatformStorageAdapter');
   console.log('storage tests: OK');
 })().catch(error=>{ console.error(error); process.exitCode=1; });
 
@@ -26,5 +27,6 @@ const fallbackStorage = fallbackContext.window.FinTrackStorage;
   await fallbackStorage.set('fallback', { value: 7 });
   assert.equal((await fallbackStorage.get('fallback')).value, 7);
   assert.equal((await fallbackStorage.load('missing', 'default')), 'default');
+  assert.equal((await fallbackStorage.migrateToIndexedDB()).migrated,false);
   console.log('storage fallback tests: OK');
 })().catch(error=>{ console.error(error); process.exitCode=1; });

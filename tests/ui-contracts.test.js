@@ -75,6 +75,9 @@ assert.ok(html.includes('href="#main"'));
 assert.ok(!html.includes('legacy-adapter'));
 assert.ok(!html.includes('<style>'));
 assert.ok(!html.includes('<script>'));
+assert.ok(html.includes('rel="manifest"'));
+assert.ok(fs.existsSync('manifest.webmanifest'));
+assert.ok(fs.readFileSync('sw.js','utf8').includes("self.addEventListener('fetch'"));
 
 const events = fs.readFileSync('js/ui/screen-events.js', 'utf8');
 assert.ok(events.includes('data-action="del-cartao"'));

@@ -1,28 +1,13 @@
-(function(){
-  'use strict';
-
-  const memory = new Map();
-  const hasPlatformStorage = () => typeof window.storage?.get === 'function' && typeof window.storage?.set === 'function';
-  const hasLocalStorage = () => typeof window.localStorage?.getItem === 'function' && typeof window.localStorage?.setItem === 'function';
-
-  async function get(key){
-    if(hasPlatformStorage()){
-      const result=await window.storage.get(key,false);
-      if(!result || result.value===undefined || result.value===null) throw new Error(`Chave não encontrada: ${key}`);
-      return JSON.parse(result.value);
-    }
-    const raw=hasLocalStorage()?window.localStorage.getItem(key):memory.get(key);
-    if(raw===undefined || raw===null) throw new Error(`Chave não encontrada: ${key}`);
-    return JSON.parse(raw);
-  }
-  async function set(key,value){
-    const serialized=JSON.stringify(value);
-    if(hasPlatformStorage()){ await window.storage.set(key,serialized,false); return; }
-    if(hasLocalStorage()){ window.localStorage.setItem(key,serialized); return; }
-    memory.set(key,serialized);
-  }
-  async function load(key,fallback){
-    try{return await get(key);}catch(e){return fallback;}
-  }
-  window.FinTrackStorage={get,set,load};
+(function(){'use strict';
+  const memory=new Map(),parse=raw=>JSON.parse(raw),serialize=value=>JSON.stringify(value);
+  class MemoryAdapter{async get(key){if(!memory.has(key))throw new Error(`Chave não encontrada: ${key}`);return parse(memory.get(key));}async set(key,value){memory.set(key,serialize(value));}}
+  class LocalStorageAdapter{constructor(storage){this.storage=storage;}async get(key){const raw=this.storage.getItem(key);if(raw==null)throw new Error(`Chave não encontrada: ${key}`);return parse(raw);}async set(key,value){this.storage.setItem(key,serialize(value));}}
+  class PlatformStorageAdapter{constructor(storage){this.storage=storage;}async get(key){const result=await this.storage.get(key,false);if(!result||result.value==null)throw new Error(`Chave não encontrada: ${key}`);return parse(result.value);}async set(key,value){await this.storage.set(key,serialize(value),false);}}
+  class IndexedDBAdapter{constructor(indexedDB,name='fintrack',store='state'){this.indexedDB=indexedDB;this.name=name;this.store=store;this.dbPromise=null;}open(){if(!this.dbPromise)this.dbPromise=new Promise((resolve,reject)=>{const request=this.indexedDB.open(this.name,1);request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains(this.store))request.result.createObjectStore(this.store);};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);});return this.dbPromise;}async transaction(mode,work){const db=await this.open();return new Promise((resolve,reject)=>{const transaction=db.transaction(this.store,mode),request=work(transaction.objectStore(this.store));request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);transaction.onabort=()=>reject(transaction.error||new Error('Transação IndexedDB abortada'));});}async get(key){const value=await this.transaction('readonly',store=>store.get(key));if(value===undefined)throw new Error(`Chave não encontrada: ${key}`);return value;}async set(key,value){const previous=await this.get(key).catch(()=>undefined);try{await this.transaction('readwrite',store=>store.put(parse(serialize(value)),key));}catch(error){if(previous!==undefined)await this.transaction('readwrite',store=>store.put(previous,key)).catch(()=>{});throw error;}}}
+  const local=typeof window.localStorage?.getItem==='function'?new LocalStorageAdapter(window.localStorage):null,idb=window.indexedDB?new IndexedDBAdapter(window.indexedDB):null;let primary=typeof window.storage?.get==='function'&&typeof window.storage?.set==='function'?new PlatformStorageAdapter(window.storage):local||idb||new MemoryAdapter();
+  async function get(key){try{return await primary.get(key);}catch(error){if(primary instanceof IndexedDBAdapter&&local){const legacy=await local.get(key);await primary.set(key,legacy);return legacy;}throw error;}}
+  async function set(key,value){try{return await primary.set(key,value);}catch(error){if(local&&primary!==local){await local.set(key,value);return;}throw error;}}
+  async function load(key,fallback){try{return await get(key);}catch{return fallback;}}
+  async function migrateToIndexedDB(keys=['fintrack-data-v1','fintrack-backups-v1']){if(!idb)return {migrated:false,reason:'unsupported'};const staged=[];try{for(const key of keys){const value=await primary.get(key).catch(()=>undefined);if(value!==undefined){await idb.set(key,value);staged.push(key);}}primary=idb;return {migrated:true,keys:staged};}catch(error){return {migrated:false,rolledBack:true,error:error.message};}}
+  window.StorageAdapter={MemoryAdapter,LocalStorageAdapter,PlatformStorageAdapter,IndexedDBAdapter};window.FinTrackStorage={get,set,load,migrateToIndexedDB,get adapter(){return primary.constructor.name;}};
 })();
