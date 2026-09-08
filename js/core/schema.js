@@ -5,7 +5,7 @@
     categorias:['orcado'],
     lancamentos:['valor'],
     cartoes:['limite'],
-    dividas:['saldo'],
+    dividas:['saldo','saldoInicial'],
     metas:['alvo','acumulado','aporte','saldoInicial'],
     pagamentosCartao:['valor'],
     pagamentosDividas:['valor','juros','amortizacao','saldoAnterior','saldoPosterior'],

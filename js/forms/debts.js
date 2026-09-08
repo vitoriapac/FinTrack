@@ -6,7 +6,7 @@
       document.getElementById('dv-save').onclick=async()=>{
         const credor=document.getElementById('dv-credor').value.trim(),saldo=toCents(document.getElementById('dv-saldo').value),proximo=document.getElementById('dv-vencimento').value,error=document.getElementById('dv-error');
         const fieldErrors={};if(!credor)fieldErrors['dv-credor']='Informe o credor.';if(saldo<=0)fieldErrors['dv-saldo']='Informe um saldo maior que zero.';if(!proximo)fieldErrors['dv-vencimento']='Informe o próximo vencimento.';if(!FinTrackFormValidation.show(fieldErrors,'dv-error'))return;
-        const payload={id:debt?.id||uid('divida'),credor,saldo,juros:Number(document.getElementById('dv-juros').value)||0,parcelasRestantes:Number(document.getElementById('dv-parcelas').value)||0,proximoVencimento:proximo,prioridade:document.getElementById('dv-prioridade').value};
+        const payload={id:debt?.id||uid('divida'),credor,saldo,saldoInicial:debt?.saldoInicial??saldo,juros:Number(document.getElementById('dv-juros').value)||0,parcelasRestantes:Number(document.getElementById('dv-parcelas').value)||0,proximoVencimento:proximo,prioridade:document.getElementById('dv-prioridade').value};
         FinTrackState.replaceState(FinTrackServices.entities.upsert(state,'dividas',payload));
         registrarHistorico(debt?'edicao_divida':'criacao_divida',`${debt?'Dívida editada':'Dívida criada'}: ${credor}`);await saveData();closeModal();render();
       };
