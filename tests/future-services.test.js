@@ -2,7 +2,7 @@ const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const vm=require('node:vm');
 const context={window:{}};vm.createContext(context);
-for(const file of ['js/financial-core.js','js/services/future.js','js/services/insights.js','js/core/closing.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
+for(const file of ['js/financial-core.js','js/services/future.js','js/services/insights.js','js/core/closing.js','js/reporting/annual.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
 const data={
   contas:[{id:'a',nome:'Conta',saldoInicial:100000,dataSaldoInicial:'2026-01-01'}],categorias:[],
   lancamentos:[
@@ -35,4 +35,5 @@ const insightData={...data,metas:[],categorias:[{id:'food',nome:'Mercado',tipo:'
 const insights=context.window.InsightService.detect(insightData,{today:'2026-09-15',limit:5});assert.ok(insights.length>=2);assert.ok(insights.length<=5);for(const item of insights)for(const field of ['tipo','severidade','titulo','mensagem','evidencia','acao'])assert.ok(item[field],`insight deve expor ${field}`);assert.ok(insights.some(item=>item.tipo==='atrasos'));assert.ok(insights.some(item=>item.tipo==='dividas'));
 const debt={id:'debt',saldoInicial:100000,saldo:70000,juros:2,parcelasRestantes:7,proximoVencimento:'2026-10-10'},debtData={...data,dividas:[debt],pagamentosDividas:[{id:'p',dividaId:'debt',valor:32000,juros:2000,amortizacao:30000}]};const debtSummary=context.window.DebtService.summary(debtData,debt);assert.equal(debtSummary.amortizacao,30000);assert.equal(debtSummary.jurosPagos,2000);assert.ok(debtSummary.parcelaEstimada>0);
 const payoff=context.window.SimulatorService.payoff(debtData,'debt',5000);assert.ok(payoff.mesesEstimados>0);assert.ok(payoff.aviso.includes('simplificada'));const purchase=context.window.SimulatorService.affordability(data,30000,3);assert.equal(purchase.parcela,10000);assert.ok(purchase.consequencia);assert.equal(JSON.stringify(debtData.dividas[0]),JSON.stringify(debt));
+const annualData={planejamentos:{'2026-01':{receita:100000,investimento:10000,orcamentos:{a:40000}}},fechamentos:{'2026-01':{snapshot:{versao:4,receitas:90000,despesas:30000,investimentos:10000,resultado:50000}},'2025-01':{snapshot:{versao:3,receitas:80000,despesas:40000,investimentos:0,resultado:40000}}}};const annual=context.window.AnnualReportService.report(annualData,2026);assert.equal(annual.meses.length,1);assert.equal(annual.totais.resultado,50000);assert.equal(annual.origem,'snapshots_fechados');assert.equal(context.window.AnnualReportService.planning(annualData,2026).totais.despesas,40000);assert.ok(context.window.AnnualReportService.csv(annualData,2026).includes('2026-01'));assert.ok(context.window.AnnualReportService.excel(annualData,2026).includes('<Workbook'));
 console.log('future services tests: OK');

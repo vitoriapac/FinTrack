@@ -117,6 +117,8 @@ function attachViewHandlers(){
   if(btnExportJson) btnExportJson.onclick = exportarJSON;
   const btnExportCsv = document.getElementById('btn-export-csv');
   if(btnExportCsv) btnExportCsv.onclick = exportarCSV;
+  const annualCsv=document.getElementById('btn-export-annual-csv');if(annualCsv)annualCsv.onclick=()=>baixarArquivo(`fintrack-anual-${balancoAno}.csv`,AnnualReportService.csv(state,balancoAno),'text/csv;charset=utf-8');
+  const annualExcel=document.getElementById('btn-export-annual-excel');if(annualExcel)annualExcel.onclick=()=>baixarArquivo(`fintrack-anual-${balancoAno}.xls`,AnnualReportService.excel(state,balancoAno),'application/vnd.ms-excel');
   const backupFile=document.getElementById('backup-file');
   if(backupFile) backupFile.onchange=importarJSON;
   const csvFile=document.getElementById('csv-file');
