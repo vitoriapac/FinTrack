@@ -6,5 +6,6 @@ test('agenda, patrimônio e planejamento futuro usam os contratos do 2.0',async(
   await page.getByRole('button',{name:'Agenda',exact:true}).click();await expect(page.getByText('Seguro futuro')).toBeVisible();
   await page.getByRole('button',{name:'Patrimônio',exact:true}).click();await expect(page.getByText('Tesouro Direto')).toBeVisible();await expect(page.getByText('Somente snapshots v4')).toBeVisible();
   await page.getByRole('button',{name:'Planejamento',exact:true}).click();await page.locator('#planejamento-mes').selectOption('2026-10');await expect(page.getByText('Out de 2026')).toBeVisible();
+  await page.getByRole('button',{name:'Projeção',exact:true}).click();await expect(page.getByRole('heading',{name:'Fluxo projetado'})).toBeVisible();await expect(page.getByText('Não altera dados reais')).toBeVisible();
   expect(errors).toEqual([]);
 });

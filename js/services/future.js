@@ -31,8 +31,23 @@
     let status=accumulated>=Number(goal.alvo||0)?'concluida':average===0||monthsLeft===0?'atrasada':average>=required*1.2?'adiantada':average>=required?'no_ritmo':'atrasada';
     return {metaId:goal.id,saldoInicial:initial,contribuicoes:contributions,acumulado:accumulated,aporteMedio:average,mesesParaConclusao:finishMonths,previsaoConclusao:finishMonths?new Date(now.getFullYear(),now.getMonth()+finishMonths,1).toISOString().slice(0,7):null,status};
   }
+  function projection(data,startMonth,months,scenario={}){
+    const count=Math.max(1,Math.min(60,Number(months)||3)),start=`${startMonth}-01`,last=String(new Date(Number(startMonth.slice(0,4)),Number(startMonth.slice(5,7))-1+count,0).toISOString().slice(0,10)),agenda=projectAgenda(data,{start,end:last}),accounts=(data.contas||[]).reduce((sum,item)=>sum+window.FinTrackCore.accountBalance(data,item,new Date().toISOString().slice(0,10)),0);
+    let balance=accounts+Number(scenario.saldoInicial||0);
+    const result=[];
+    for(let index=0;index<count;index++){
+      const date=new Date(Number(startMonth.slice(0,4)),Number(startMonth.slice(5,7))-1+index,1),key=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`,planning=data.planejamentos?.[key]||{},events=agenda.filter(item=>item.vencimento.startsWith(key)),plannedIncome=Number(planning.receita||0),eventIncome=events.filter(item=>item.tipo==='receita').reduce((sum,item)=>sum+item.valor,0),expenses=events.filter(item=>item.tipo==='despesa'&&item.origem!=='lancamento'&&item.origem!=='recorrencia'&&item.origem!=='parcela').reduce((sum,item)=>sum+item.valor,0)+events.filter(item=>item.tipo==='despesa'&&['lancamento','recorrencia','parcela'].includes(item.origem)).reduce((sum,item)=>sum+item.valor,0),investment=Number(planning.investimento||0),adjustment=Number(scenario.ajustes?.[key]||0)+Number(scenario.gastoMensal||0)*-1-Number(scenario.investimentoMensal||0),income=plannedIncome||eventIncome,opening=balance;
+      let minBalance=opening;
+      const flows=[...events.map(item=>({date:item.vencimento,value:item.tipo==='receita'?item.valor:-item.valor})),...(income>eventIncome?[{date:`${key}-05`,value:income-eventIncome}]:[]),...(investment?[{date:`${key}-15`,value:-investment}]:[]),...(adjustment?[{date:`${key}-28`,value:adjustment}]:[])].sort((a,b)=>a.date.localeCompare(b.date));
+      let running=opening;flows.forEach(flow=>{running+=flow.value;minBalance=Math.min(minBalance,running);});balance=opening+income-expenses-investment+adjustment;
+      const impact=[{label:'despesas previstas',value:expenses},{label:'investimentos planejados',value:investment},{label:'ajuste de cenário',value:Math.max(0,-adjustment)}].sort((a,b)=>b.value-a.value)[0];
+      result.push({mes:key,saldoInicial:opening,entradas:income,saidas:expenses,investimentos:investment,ajustes:adjustment,menorSaldo:minBalance,saldoFinal:balance,alerta:minBalance<0?'saldo_negativo':minBalance<Math.max(10000,income*.1)?'margem_reduzida':null,principalImpacto:impact.value?impact.label:null});
+    }
+    return {inicio:startMonth,meses:result,cenario:clone(scenario),referenciaDiaria:count?Math.max(0,Math.floor(result[0].saldoFinal/new Date(Number(startMonth.slice(0,4)),Number(startMonth.slice(5,7)),0).getDate())):0,aviso:'Estimativa baseada nos dados e planejamentos disponíveis; não é saldo garantido.'};
+  }
   window.AgendaService={project:projectAgenda};
   window.PatrimonyService={summary:patrimonySummary};
   window.PlanningService={copy:copyPlanning,annualReserve};
   window.GoalService={summary:goalSummary};
+  window.ProjectionService={project:projection};
 })();
