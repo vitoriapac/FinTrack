@@ -26,4 +26,6 @@ const closing=context.window.FinTrackClosing.createSnapshot(data,'2026-09');
 assert.equal(closing.snapshot.versao,4);assert.equal(closing.snapshot.patrimonio.liquido,110000);
 assert.equal(JSON.stringify(data),before,'serviços puros não podem alterar a entrada');
 data.ativosInvestimento[0].valorAtual=999999;assert.equal(closing.snapshot.patrimonio.investimentos,60000,'snapshot v4 deve permanecer imutável após alterações atuais');
+const goal={id:'goal',nome:'Reserva',alvo:100000,saldoInicial:10000,prazo:'2026-12-31'},goalData={metas:[goal],lancamentos:[{id:'c1',operacaoId:'o1',metaId:'goal',tipoOperacao:'investimento',movimentoInvestimento:'aporte',status:'Pago',data:'2026-08-10',valor:20000},{id:'c2',operacaoId:'o2',metaId:'goal',tipoOperacao:'investimento',movimentoInvestimento:'resgate',status:'Pago',data:'2026-09-10',valor:5000},{id:'ignored',operacaoId:'o3',metaId:'goal',tipoOperacao:'investimento',movimentoInvestimento:'aporte',status:'Pago',data:'2026-09-12',valor:90000}],operacoes:[{id:'o1',status:'concluida'},{id:'o2',status:'concluida'},{id:'o3',status:'estornada'}]};
+const goalSummary=context.window.GoalService.summary(goalData,goal,'2026-09-15');assert.equal(goalSummary.acumulado,25000);assert.equal(goalSummary.aporteMedio,20000);assert.equal(goalSummary.contribuicoes.length,2);
 console.log('future services tests: OK');

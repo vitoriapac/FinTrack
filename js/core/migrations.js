@@ -39,6 +39,7 @@
     data.pagamentosCartao=(Array.isArray(data.pagamentosCartao)?data.pagamentosCartao:[]).map(payment=>({...payment,faturaId:payment.faturaId||`${payment.cartaoId||'cartao'}:${payment.invoiceKey||'sem-fatura'}`}));
     data.cartoes=(Array.isArray(data.cartoes)?data.cartoes:[]).map(card=>({...card,fechamento:card.fechamento==null?1:Number(card.fechamento),vencimento:card.vencimento==null?10:Number(card.vencimento)}));
     data.dividas=(Array.isArray(data.dividas)?data.dividas:[]).map(debt=>({...debt,juros:debt.juros==null?0:Number(debt.juros),parcelasRestantes:debt.parcelasRestantes==null?0:Number(debt.parcelasRestantes)}));
+    data.metas=(Array.isArray(data.metas)?data.metas:[]).map(goal=>({...goal,saldoInicial:goal.saldoInicial==null?Number(goal.acumulado||0):Number(goal.saldoInicial)}));
     const operations=new Map((Array.isArray(data.operacoes)?data.operacoes:[]).filter(item=>item?.id).map(item=>[item.id,{...item}]));
     data.lancamentos.filter(item=>item.operacaoId).forEach(item=>{
       const linked=data.lancamentos.filter(candidate=>candidate.operacaoId===item.operacaoId),outgoing=linked.find(candidate=>candidate.movimentoTransferencia==='saida');

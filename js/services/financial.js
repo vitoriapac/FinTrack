@@ -32,9 +32,9 @@
     if(amount<=0) throw new Error('O valor do investimento deve ser positivo.');
     if(!['aporte','resgate'].includes(input.movimentoInvestimento)) throw new Error('Movimento de investimento inválido.');
     const operationId=input.operacaoId||nextId('op-investimento',idFactory),entryId=input.id||nextId('investimento',idFactory);
-    const entry={...clone(input),id:entryId,operacaoId:operationId,tipoOperacao:'investimento',natureza:'investimento',tipo:'Despesa',valor:amount,fixa:false};
+    const entry={...clone(input),id:entryId,operacaoId:operationId,tipoOperacao:'investimento',natureza:'investimento',tipo:'Despesa',valor:amount,fixa:false,metaId:input.metaId||null};
     next.lancamentos=next.lancamentos||[];next.lancamentos.push(entry);
-    next.operacoes=next.operacoes||[];next.operacoes.push({id:operationId,tipo:'investimento',status:entry.status==='Pago'?'concluida':'pendente',criadaEm:entry.data,valor:amount,contaId:entry.contaId,referencias:{movimento:entry.movimentoInvestimento},lancamentoIds:[entryId]});
+    next.operacoes=next.operacoes||[];next.operacoes.push({id:operationId,tipo:'investimento',status:entry.status==='Pago'?'concluida':'pendente',criadaEm:entry.data,valor:amount,contaId:entry.contaId,referencias:{movimento:entry.movimentoInvestimento,metaId:entry.metaId},lancamentoIds:[entryId]});
     return {state:next,operationId,entry};
   }
 

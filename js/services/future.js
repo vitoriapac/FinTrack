@@ -24,7 +24,15 @@
   }
   function copyPlanning(data,fromMonth,toMonth){const next=clone(data),source=next.planejamentos?.[fromMonth]||{};next.planejamentos={...(next.planejamentos||{}),[toMonth]:{receita:Number(source.receita||0),investimento:Number(source.investimento||0),orcamentos:{...(source.orcamentos||{})}}};return next;}
   function annualReserve(expense,atMonth){const month=Math.max(1,Math.min(12,Number(expense.mes)||1)),current=Math.max(1,Math.min(12,Number(String(atMonth).slice(5,7))||1)),remaining=month>=current?month-current+1:month+12-current+1;return {mesesRestantes:remaining,reservaMensalSugerida:Math.ceil(Number(expense.valorEstimado||0)/remaining)};}
+  function goalSummary(data,goal,atDate=new Date().toISOString().slice(0,10)){
+    const operations=new Map((data.operacoes||[]).map(item=>[item.id,item])),contributions=(data.lancamentos||[]).filter(item=>item.metaId===goal.id&&item.tipoOperacao==='investimento'&&item.status==='Pago'&&operations.get(item.operacaoId)?.status!=='estornada').map(item=>({operacaoId:item.operacaoId,lancamentoId:item.id,data:item.data,valor:item.movimentoInvestimento==='resgate'?-Number(item.valor||0):Number(item.valor||0)}));
+    const initial=Number(goal.saldoInicial??goal.acumulado??0),accumulated=initial+contributions.reduce((sum,item)=>sum+item.valor,0),positive=contributions.filter(item=>item.valor>0),months=new Set(positive.map(item=>item.data.slice(0,7))).size,average=months?Math.round(positive.reduce((sum,item)=>sum+item.valor,0)/months):0,remaining=Math.max(0,Number(goal.alvo||0)-accumulated),finishMonths=average?Math.ceil(remaining/average):null;
+    const deadline=goal.prazo?new Date(`${goal.prazo}T12:00:00`):null,now=new Date(`${atDate}T12:00:00`),monthsLeft=deadline?Math.max(0,(deadline.getFullYear()-now.getFullYear())*12+deadline.getMonth()-now.getMonth()+1):null,required=monthsLeft?Math.ceil(remaining/monthsLeft):remaining;
+    let status=accumulated>=Number(goal.alvo||0)?'concluida':average===0||monthsLeft===0?'atrasada':average>=required*1.2?'adiantada':average>=required?'no_ritmo':'atrasada';
+    return {metaId:goal.id,saldoInicial:initial,contribuicoes:contributions,acumulado:accumulated,aporteMedio:average,mesesParaConclusao:finishMonths,previsaoConclusao:finishMonths?new Date(now.getFullYear(),now.getMonth()+finishMonths,1).toISOString().slice(0,7):null,status};
+  }
   window.AgendaService={project:projectAgenda};
   window.PatrimonyService={summary:patrimonySummary};
   window.PlanningService={copy:copyPlanning,annualReserve};
+  window.GoalService={summary:goalSummary};
 })();

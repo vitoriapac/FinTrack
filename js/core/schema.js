@@ -6,7 +6,7 @@
     lancamentos:['valor'],
     cartoes:['limite'],
     dividas:['saldo'],
-    metas:['alvo','acumulado','aporte'],
+    metas:['alvo','acumulado','aporte','saldoInicial'],
     pagamentosCartao:['valor'],
     pagamentosDividas:['valor','juros','amortizacao','saldoAnterior','saldoPosterior'],
     operacoes:['valor'],
