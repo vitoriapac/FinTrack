@@ -2,6 +2,7 @@ function attachViewHandlers(){
   const main = document.getElementById('main');
 
   FinTrackScreenEvents.attach(main);
+  FinTrackCharts.bindTooltips(main);
 
   main.querySelectorAll('[data-action="go-lancamentos"]').forEach(b => b.onclick = () => setView('lancamentos'));
   main.querySelectorAll('[data-action="select-closing"]').forEach(button=>button.onclick=()=>{historicoMes=button.dataset.key;render();});
