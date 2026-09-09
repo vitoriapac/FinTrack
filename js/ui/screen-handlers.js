@@ -71,7 +71,20 @@ function attachViewHandlers(){
   });
 
   FinTrackFilters.bind(main);
-  const agendaFilter=document.getElementById('agenda-tipo');if(agendaFilter)agendaFilter.onchange=()=>{agendaTipo=agendaFilter.value;render();};
+  const agendaFilter=document.getElementById('agenda-tipo');if(agendaFilter)agendaFilter.onchange=()=>{agendaTipo=agendaFilter.value;agendaDiaSelecionado=null;render();};
+  const agendaMonth=document.getElementById('agenda-mes');if(agendaMonth)agendaMonth.onchange=()=>{agendaMes=agendaMonth.value;agendaDiaSelecionado=null;render();};
+  const shiftAgenda=amount=>{agendaMes=addMonths(`${agendaMes}-01`,amount).slice(0,7);agendaDiaSelecionado=null;render();};
+  const agendaPrev=document.getElementById('agenda-prev');if(agendaPrev)agendaPrev.onclick=()=>shiftAgenda(-1);
+  const agendaNext=document.getElementById('agenda-next');if(agendaNext)agendaNext.onclick=()=>shiftAgenda(1);
+  const agendaToday=document.getElementById('agenda-today');if(agendaToday)agendaToday.onclick=()=>{agendaMes=todayLocal().slice(0,7);agendaDiaSelecionado=todayLocal();render();};
+  [['agenda-conta','contaId'],['agenda-cartao','cartaoId'],['agenda-divida','dividaId']].forEach(([id,key])=>{const field=document.getElementById(id);if(field)field.onchange=()=>{agendaFiltros[key]=field.value;agendaDiaSelecionado=null;render();};});
+  const agendaInstallment=document.getElementById('agenda-parcela');if(agendaInstallment)agendaInstallment.onchange=()=>{agendaFiltros.parcela=agendaInstallment.checked;agendaDiaSelecionado=null;render();};
+  main.querySelectorAll('[data-agenda-mode]').forEach(button=>button.onclick=()=>{agendaModo=button.dataset.agendaMode;agendaDiaSelecionado=null;render();});
+  main.querySelectorAll('[data-agenda-day]').forEach(button=>button.onclick=()=>{agendaDiaSelecionado=button.dataset.agendaDay;render();document.getElementById('agenda-close-day')?.focus();});
+  main.querySelectorAll('[data-agenda-open]').forEach(button=>button.onclick=()=>{const item=AgendaService.project(state,{start:`${agendaMes}-01`,end:addMonths(`${agendaMes}-01`,1).slice(0,7)+'-01'}).find(entry=>entry.id===button.dataset.agendaOpen);if(item){agendaDiaSelecionado=item.vencimento;render();document.getElementById('agenda-close-day')?.focus();}});
+  const closeAgendaDay=document.getElementById('agenda-close-day');if(closeAgendaDay)closeAgendaDay.onclick=()=>{agendaDiaSelecionado=null;render();};
+  main.querySelectorAll('[data-agenda-link]').forEach(button=>button.onclick=()=>setView(button.dataset.agendaLink.split(':')[0]||'lancamentos'));
+  main.querySelectorAll('[data-agenda-pay]').forEach(button=>button.onclick=async()=>{const lanc=state.lancamentos.find(item=>item.id===button.dataset.agendaPay);if(!lanc||impedirAlteracaoMes(lanc.data))return;const result=FinTrackServices.entries.toggleStatus(state,lanc.id);FinTrackState.replaceState(result.state);registrarHistorico('alteracao_status',`Status alterado para ${result.status}: ${lanc.descricao}`,{lancamentoIds:result.items.map(item=>item.id),operacaoId:lanc.operacaoId||null});await saveData();agendaDiaSelecionado=null;render();});
   const saveProfile=document.getElementById('btn-save-profile');if(saveProfile)saveProfile.onclick=async()=>{await saveProfileName(document.getElementById('profile-name').value);render();};
   main.querySelectorAll('[data-insight-target]').forEach(button=>button.onclick=()=>setView(button.dataset.insightTarget));
   const notifications=document.getElementById('btn-enable-notifications');if(notifications)notifications.onclick=async()=>{const status=document.getElementById('notification-status');if(!('Notification'in window)){status.textContent='Notificações não são suportadas neste navegador.';return;}const permission=await Notification.requestPermission();if(permission!=='granted'){status.textContent='Permissão não concedida.';return;}const next=AgendaService.project(state,{start:todayLocal(),end:addMonths(todayLocal(),1)},{tipo:'despesa'})[0],registration=await navigator.serviceWorker?.ready;if(next&&registration)await registration.showNotification('Próximo compromisso FinTrack',{body:`${next.titulo} · ${formatDate(next.vencimento)} · ${formatMoney(next.valor)}`,tag:`agenda-${next.id}`});status.textContent=next?'Lembrete local ativado para o próximo compromisso.':'Permissão concedida; não há compromissos próximos.';};

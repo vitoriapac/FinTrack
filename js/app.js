@@ -50,6 +50,10 @@ let cadastroTab = 'categorias';
 let historicoMes = null;
 let planejamentoMes = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
 let agendaTipo = 'todos';
+let agendaModo = 'calendario';
+let agendaMes = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+let agendaFiltros = {contaId:'',cartaoId:'',dividaId:'',parcela:false};
+let agendaDiaSelecionado = null;
 let lancMostrarTodos = false;
 
 /* ---------- Persistência ---------- */
