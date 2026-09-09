@@ -8,7 +8,7 @@ test('rodapé reúne backup, recuperação, importação e armazenamento ativo',
   await expect(footer.getByRole('button',{name:'Backup JSON'})).toBeVisible();
   await expect(footer.getByRole('button',{name:'Arquivo de recuperação'})).toBeVisible();
   await expect(footer.getByText('Importar backup',{exact:true})).toBeVisible();
-  expect(await footer.locator('.footer-action').evaluateAll(items=>items.map(item=>item.textContent.trim()))).toEqual(['Backup JSON','Importar backup','Relatório mensal','Arquivo de recuperação']);
+  expect(await footer.locator('.footer-action').evaluateAll(items=>items.map(item=>item.textContent.trim()))).toEqual(['Backup JSON','Importar backup','Relatório mensal','Arquivo de recuperação','Limpar dados']);
   const downloadPromise=page.waitForEvent('download');
   await footer.getByRole('button',{name:'Backup JSON'}).click();
   expect((await downloadPromise).suggestedFilename()).toMatch(/^fintrack-backup-.*\.json$/);
