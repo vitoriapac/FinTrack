@@ -7,5 +7,6 @@
   --state-positive:var(--income);--state-warning:var(--gold);--state-negative:var(--expense);--state-neutral:var(--muted);
   --type-caption:12px;--type-secondary:14px;--type-body:15px;--type-section:18px;--type-title:26px;
   --number-small:20px;--number-medium:26px;--number-large:32px;
+  --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-7:32px;
   --bg-primary:var(--paper);--bg-secondary:var(--paper-alt);--surface:var(--surface-primary);--surface-alt:var(--surface-muted);--positive:var(--state-positive);--negative:var(--state-negative);--warning:var(--state-warning);
 }
