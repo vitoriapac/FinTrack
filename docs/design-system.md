@@ -13,3 +13,7 @@ A escala oficial é 4, 8, 12, 16, 20, 24 e 32px (`--space-1` a `--space-7`). Car
 ## Estados
 
 Normal usa verde, Atenção usa dourado e Crítico usa terracota. Toda cor possui texto equivalente. Tabelas permanecem prioritárias para dados operacionais e auditoria.
+
+## Controles e estados vazios
+
+Controles têm altura mínima de 42px e foco dourado. Períodos mensais exibem o mês por extenso, preservando `YYYY-MM` internamente. Cada tela apresenta no máximo um estado vazio principal, sempre com explicação e uma única ação contextual.
