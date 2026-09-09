@@ -5,6 +5,7 @@ test.beforeEach(async({page})=>{
   await page.evaluate(()=>localStorage.clear());
   await page.reload();
   if(await page.locator('#nav-mobile-toggle').isVisible())await page.locator('#nav-mobile-toggle').click();
+  await page.locator('.nav-group-toggle').filter({hasText:'Planejar'}).click();
   await page.getByRole('button',{name:'Agenda',exact:true}).click();
 });
 

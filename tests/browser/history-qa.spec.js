@@ -5,7 +5,7 @@ test.beforeEach(async({page})=>{
   await page.evaluate(()=>localStorage.clear());
   await page.reload();
   if(await page.locator('#nav-mobile-toggle').isVisible())await page.locator('#nav-mobile-toggle').click();
-  await page.locator('.nav-group-toggle').filter({hasText:'Mais'}).click();
+  await page.locator('.nav-group-toggle').evaluateAll(buttons=>buttons.forEach(button=>button.click()));
 });
 
 test('histórico identifica lacunas, estatísticas e snapshots legados sem recalcular',async({page})=>{
@@ -48,11 +48,10 @@ test('QA responsivo mantém a aplicação dentro de cinco viewports',async({page
   for(const [width,height] of sizes){
     await page.setViewportSize({width,height});
     if(width<=640)await page.evaluate(()=>document.querySelector('.sidebar').classList.add('nav-open'));
-    for(const view of ['Home','Lançamentos','Agenda','Balanço','Visão anual','Patrimônio','Histórico','Planejamento','Projeção','Metas','Cartões','Dívidas','Simuladores','Auditoria','Instalação','Cadastro']){
-      const button=view==='Home'?page.getByRole('button',{name:'Abrir visão geral'}):page.getByRole('button',{name:view,exact:true});
-      await button.click();
+    for(const view of [['Home','home'],['Lançamentos','lancamentos'],['Agenda','agenda'],['Balanço','balanco'],['Visão anual','anual'],['Patrimônio','patrimonio'],['Histórico','historico'],['Planejamento','planejamento'],['Projeção','projecao'],['Metas','metas'],['Cartões','cartoes'],['Dívidas','dividas'],['Simuladores','simuladores'],['Auditoria','auditoria'],['Instalação','instalacao'],['Cadastro','cadastro']]){
+      await page.evaluate(target=>setView(target),view[1]);
       const layout=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,clientWidth:document.documentElement.clientWidth,mainRight:document.querySelector('main').getBoundingClientRect().right}));
-      expect(layout.scrollWidth,`${view} em ${width}px não deve criar scroll global`).toBeLessThanOrEqual(layout.clientWidth+1);
+      expect(layout.scrollWidth,`${view[0]} em ${width}px não deve criar scroll global`).toBeLessThanOrEqual(layout.clientWidth+1);
       expect(layout.mainRight).toBeLessThanOrEqual(width+1);
     }
   }

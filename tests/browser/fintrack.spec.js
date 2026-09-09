@@ -7,6 +7,18 @@ test.beforeEach(async({page})=>{
   if(await page.locator('#nav-mobile-toggle').isVisible())await page.locator('#nav-mobile-toggle').click();
 });
 
+test('menu lateral inicia recolhido e não cria barras de rolagem',async({page})=>{
+  const groups=page.locator('.nav-group-toggle');
+  await expect(groups).toHaveCount(4);
+  for(let index=0;index<4;index++)await expect(groups.nth(index)).toHaveAttribute('aria-expanded','false');
+  const dimensions=await page.locator('.sidebar').evaluate(element=>({scrollWidth:element.scrollWidth,clientWidth:element.clientWidth,scrollHeight:element.scrollHeight,clientHeight:element.clientHeight,overflow:getComputedStyle(element).overflow}));
+  expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+  expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.clientHeight);
+  expect(dimensions.overflow).toBe('hidden');
+  await groups.filter({hasText:'Movimentações'}).click();
+  await expect(page.getByRole('button',{name:'Lançamentos',exact:true})).toBeVisible();
+});
+
 test('navega por atalhos e abre a busca global',async({page})=>{
   await expect(page.getByRole('heading',{name:'O que fazer hoje'})).toBeVisible();
   await page.keyboard.press('Alt+Digit7');
@@ -18,6 +30,7 @@ test('navega por atalhos e abre a busca global',async({page})=>{
 
 test('mantém a navegação e ações principais acessíveis no mobile',async({page,isMobile})=>{
   test.skip(!isMobile,'Cenário específico do projeto mobile');
+  await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
   await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Lançamentos'})).toBeVisible();
   await expect(page.getByRole('button',{name:'Novo lançamento'})).toBeVisible();
@@ -25,6 +38,7 @@ test('mantém a navegação e ações principais acessíveis no mobile',async({p
 });
 
 test('ações secundárias e filtros não sobrecarregam o cabeçalho',async({page})=>{
+  await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
   await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
   await expect(page.locator('.page-actions>button')).toHaveCount(1);
   await page.locator('.action-menu summary').click();
@@ -36,7 +50,7 @@ test('ações secundárias e filtros não sobrecarregam o cabeçalho',async({pag
 
 test('não gera erros JavaScript na carga e navegação principal',async({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
-  await page.locator('.nav-group-toggle').filter({hasText:'Mais'}).click();
+  for(const group of ['Movimentações','Planejar','Analisar','Mais'])await page.locator('.nav-group-toggle').filter({hasText:group}).click();
   for(const label of ['Balanço','Histórico','Planejamento','Cartões','Dívidas','Auditoria','Cadastro']){
     await page.getByRole('button',{name:label,exact:true}).click();
   }

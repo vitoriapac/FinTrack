@@ -6,10 +6,10 @@
   #app{display:flex;min-height:100vh;}
 
   /* Sidebar */
-  .sidebar{width:220px;flex-shrink:0;background:var(--forest);color:var(--paper);display:flex;flex-direction:column;padding:28px 0;position:sticky;top:0;height:100vh;align-self:flex-start;z-index:10;}
+  .sidebar{width:220px;flex-shrink:0;background:var(--forest);color:var(--paper);display:flex;flex-direction:column;padding:28px 0;position:sticky;top:0;height:100vh;align-self:flex-start;z-index:10;overflow:hidden;}
   .brand{font-family:'Fraunces',serif;font-size:22px;font-weight:600;padding:0 24px 28px;border-bottom:1px solid rgba(240,236,226,0.15);margin-bottom:8px;}
   .brand span{color:var(--gold);}
-  nav{display:flex;flex-direction:column;margin-top:8px;overflow-y:auto;}
+  nav{display:flex;flex-direction:column;margin-top:8px;overflow:visible;min-width:0;}
   .nav-item{all:unset;cursor:pointer;padding:12px 24px;font-size:14px;color:rgba(240,236,226,0.75);border-left:3px solid transparent;transition:background .15s;}
   .nav-item:hover{background:rgba(255,255,255,0.05);color:var(--paper);}
   .nav-item.active{background:var(--forest-dark);color:var(--paper);border-left:3px solid var(--gold);font-weight:500;}

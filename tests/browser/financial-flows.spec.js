@@ -14,6 +14,7 @@ test.beforeEach(async({page})=>{
 });
 
 async function openEntries(page){
+  if(await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).getAttribute('aria-expanded')==='false')await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
   await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Lançamentos'})).toBeVisible();
 }
