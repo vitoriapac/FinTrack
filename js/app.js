@@ -382,7 +382,8 @@ function renderBackupTab(){
 }
 
 function renderAppFooter(){
-  return `<footer class="app-footer"><details class="backup-panel"><summary>Backup e recuperação</summary><div class="backup-panel-body">${renderBackupTab()}</div></details><p>FinTrack · Seus dados permanecem neste dispositivo.</p></footer>`;
+  const latest=Object.entries(state.fechamentos||{}).filter(([,item])=>item.status==='fechado'&&item.snapshot).sort(([a],[b])=>b.localeCompare(a))[0];
+  return `<footer class="app-footer"><div class="footer-head"><div><strong>FinTrack</strong><span>Salvo localmente · ${esc(FinTrackStorage.adapter)}</span></div><nav class="footer-actions" aria-label="Backup e relatórios"><button class="footer-action" id="footer-report" ${latest?'':'disabled'}>Relatório mensal</button><button class="footer-action" id="footer-backup">Backup JSON</button><button class="footer-action" id="footer-recovery">Arquivo de recuperação</button><label class="footer-action" for="footer-import">Importar backup</label><input id="footer-import" type="file" accept="application/json,.json" hidden></nav></div><details class="backup-panel"><summary>Backup e recuperação — ferramentas administrativas</summary><div class="backup-panel-body">${renderBackupTab()}</div></details><div class="footer-meta"><span>Dados financeiros não saem deste dispositivo.</span><span><kbd>Ctrl</kbd> + <kbd>K</kbd> Busca · salvamento automático ativo</span></div></footer>`;
 }
 
 function baixarArquivo(nome, conteudo, tipo){
@@ -481,6 +482,9 @@ function criarDadosDemo(){
   demo=FinTrackServices.payments.debt(demo,{id:'demo-debt-payment',dividaId:'demo-debt',contaId:'conta-bb',valor:30000,data:addMonths(primeiro,-1).slice(0,8)+'20',idFactory:demoId});
   [-5,-4,-3,-2].forEach(offset=>{const key=addMonths(primeiro,offset).slice(0,7);demo.fechamentos[key]=FinTrackClosing.createSnapshot(demo,key,{observacao:'Fechamento da demonstração'});});
   return demo;
+}
+function exportarArquivoRecuperacao(){
+  baixarArquivo(`fintrack-recuperacao-${todayLocal()}.json`,JSON.stringify(snapshotAtual(),null,2),'application/json');
 }
 
 function carregarDemo(){
