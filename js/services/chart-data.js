@@ -7,5 +7,10 @@
   function categories(data,month,limit=5){const [year,index]=month.split('-').map(Number),rows=(data.categorias||[]).map(item=>({label:item.nome,value:window.FinTrackCore.categorySpend(data,item.id,index,year,'Pago')})).filter(item=>item.value>0).sort((a,b)=>b.value-a.value),head=rows.slice(0,limit),rest=sum(rows.slice(limit),'value');return rest?[...head,{label:'Outros',value:rest}]:head;}
   function patrimony(data){return Object.entries(data.fechamentos||{}).filter(([,item])=>Number(item.snapshot?.versao)===4).sort(([a],[b])=>a.localeCompare(b)).map(([label,item])=>({label,value:Number(item.snapshot.patrimonioLiquido||0)}));}
   function projection(data,startMonth){return window.ProjectionService.project(data,startMonth,3).meses.map(item=>({label:item.mes,value:item.saldoFinal,menorSaldo:item.menorSaldo}));}
-  window.ChartDataService={cashflow,budgets,categories,patrimony,projection};
+  function patrimonyComposition(data,atDate){const value=window.PatrimonyService.summary(data,atDate);return [{label:'Contas',value:value.contas},{label:'Investimentos',value:value.investimentos},{label:'Dívidas',value:value.dividas}].filter(item=>item.value>0);}
+  function goals(data,atDate){return (data.metas||[]).map(goal=>{const value=window.GoalService.summary(data,goal,atDate);return {label:goal.nome,value:value.acumulado,alvo:Number(goal.alvo||0),restante:Math.max(0,Number(goal.alvo||0)-value.acumulado),aporteMedio:value.aporteMedio};});}
+  function debts(data){return (data.dividas||[]).map(debt=>{const value=window.DebtService.summary(data,debt);return {label:debt.credor||debt.nome,principal:value.saldoAtual,amortizacao:value.amortizacao,juros:value.jurosPagos};});}
+  function planning(data,month){return budgets(data,month).map(item=>({label:item.label,orcado:item.planejado,realizado:item.comprometido,pendente:Math.max(0,item.comprometido-item.planejado+item.excesso)}));}
+  function history(data){return Object.entries(data.fechamentos||{}).filter(([,item])=>item.status==='fechado'&&item.snapshot).sort(([a],[b])=>a.localeCompare(b)).map(([label,item])=>({label,value:Number(item.snapshot.resultado||0),investimentos:Number(item.snapshot.investimentos||0)}));}
+  window.ChartDataService={cashflow,budgets,categories,patrimony,projection,patrimonyComposition,goals,debts,planning,history};
 })();
