@@ -12,6 +12,7 @@
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/mobile.css">
+<link rel="stylesheet" href="css/navigation.css">
 </head>
 <body>
 
@@ -19,25 +20,13 @@
 <div id="app">
   <aside class="sidebar">
     <div class="brand">Fin<span>Track</span></div>
+    <button class="nav-mobile-toggle" id="nav-mobile-toggle" aria-expanded="false" aria-controls="nav">Menu</button>
     <nav id="nav" aria-label="Navegação principal">
-      <button class="nav-item" data-view="home" aria-label="Abrir visão geral">Home</button>
-      <button class="nav-item" data-view="lancamentos">Lançamentos</button>
-      <button class="nav-item" data-view="vencimentos">Vencimentos</button>
-      <button class="nav-item" data-view="agenda">Agenda</button>
-      <button class="nav-item" data-view="balanco">Balanço</button>
-      <button class="nav-item" data-view="anual">Visão anual</button>
-      <button class="nav-item" data-view="patrimonio">Patrimônio</button>
-      <button class="nav-item" data-view="historico">Histórico</button>
-      <button class="nav-item" data-view="planejamento">Planejamento</button>
-      <button class="nav-item" data-view="projecao">Projeção</button>
-      <button class="nav-item" data-view="metas">Metas</button>
-      <button class="nav-item" data-view="cartoes">Cartões</button>
-      <button class="nav-item" data-view="dividas">Dívidas</button>
-      <button class="nav-item" data-view="simuladores">Simuladores</button>
-      <button class="nav-item" data-view="auditoria">Auditoria</button>
-      <button class="nav-item" data-view="instalacao">Instalação</button>
-      <button class="nav-item" data-view="cadastro">Cadastro</button>
-      <button class="nav-item" data-view="configuracoes">Configurações</button>
+      <button class="nav-item nav-primary" data-view="home" aria-label="Abrir visão geral">Visão geral</button>
+      <div class="nav-group"><button class="nav-group-toggle" aria-expanded="true">Movimentações</button><div class="nav-submenu"><button class="nav-item" data-view="lancamentos">Lançamentos</button><button class="nav-item" data-view="cartoes">Cartões</button><button class="nav-item" data-view="dividas">Dívidas</button></div></div>
+      <div class="nav-group"><button class="nav-group-toggle" aria-expanded="true">Planejar</button><div class="nav-submenu"><button class="nav-item" data-view="planejamento">Planejamento</button><button class="nav-item" data-view="metas">Metas</button><button class="nav-item" data-view="agenda">Agenda</button></div></div>
+      <div class="nav-group"><button class="nav-group-toggle" aria-expanded="true">Analisar</button><div class="nav-submenu"><button class="nav-item" data-view="patrimonio">Patrimônio</button><button class="nav-item" data-view="balanco">Balanço</button><button class="nav-item" data-view="historico">Histórico</button><button class="nav-item" data-view="projecao">Projeção</button><button class="nav-item" data-view="anual">Visão anual</button></div></div>
+      <div class="nav-group"><button class="nav-group-toggle" aria-expanded="false">Mais</button><div class="nav-submenu" hidden><button class="nav-item" data-view="simuladores">Simuladores</button><button class="nav-item" data-view="cadastro">Cadastro</button><button class="nav-item" data-view="auditoria">Auditoria</button><button class="nav-item" data-view="instalacao">Instalação</button><button class="nav-item" data-view="configuracoes">Configurações</button></div></div>
     </nav>
     <div class="sidebar-foot">FinTrack &middot; base pessoal</div>
   </aside>

@@ -4,6 +4,8 @@ test.beforeEach(async({page})=>{
   await page.goto('/');
   await page.evaluate(()=>localStorage.clear());
   await page.reload();
+  if(await page.locator('#nav-mobile-toggle').isVisible())await page.locator('#nav-mobile-toggle').click();
+  await page.locator('.nav-group-toggle').filter({hasText:'Mais'}).click();
 });
 
 test('histórico identifica lacunas, estatísticas e snapshots legados sem recalcular',async({page})=>{
@@ -45,7 +47,8 @@ test('QA responsivo mantém a aplicação dentro de cinco viewports',async({page
   const sizes=[[1440,900],[1024,768],[768,900],[390,844],[360,800]];
   for(const [width,height] of sizes){
     await page.setViewportSize({width,height});
-    for(const view of ['Home','Lançamentos','Vencimentos','Agenda','Balanço','Visão anual','Patrimônio','Histórico','Planejamento','Projeção','Metas','Cartões','Dívidas','Simuladores','Auditoria','Instalação','Cadastro']){
+    if(width<=640)await page.evaluate(()=>document.querySelector('.sidebar').classList.add('nav-open'));
+    for(const view of ['Home','Lançamentos','Agenda','Balanço','Visão anual','Patrimônio','Histórico','Planejamento','Projeção','Metas','Cartões','Dívidas','Simuladores','Auditoria','Instalação','Cadastro']){
       const button=view==='Home'?page.getByRole('button',{name:'Abrir visão geral'}):page.getByRole('button',{name:view,exact:true});
       await button.click();
       const layout=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,clientWidth:document.documentElement.clientWidth,mainRight:document.querySelector('main').getBoundingClientRect().right}));
@@ -60,7 +63,7 @@ test('QA estrutural mantém nomes acessíveis, ids únicos e console limpo',asyn
   const failures=[];
   page.on('pageerror',error=>failures.push(`pageerror: ${error.message}`));
   page.on('console',message=>{if(message.type()==='error')failures.push(`console: ${message.text()}`);});
-  for(const view of ['Home','Lançamentos','Vencimentos','Agenda','Balanço','Visão anual','Patrimônio','Histórico','Planejamento','Projeção','Metas','Cartões','Dívidas','Simuladores','Auditoria','Instalação','Cadastro']){
+  for(const view of ['Home','Lançamentos','Agenda','Balanço','Visão anual','Patrimônio','Histórico','Planejamento','Projeção','Metas','Cartões','Dívidas','Simuladores','Auditoria','Instalação','Cadastro']){
     const button=view==='Home'?page.getByRole('button',{name:'Abrir visão geral'}):page.getByRole('button',{name:view,exact:true});
     await button.click();
     const audit=await page.evaluate(()=>{

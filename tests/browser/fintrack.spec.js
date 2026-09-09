@@ -4,6 +4,7 @@ test.beforeEach(async({page})=>{
   await page.goto('/');
   await page.evaluate(()=>localStorage.clear());
   await page.reload();
+  if(await page.locator('#nav-mobile-toggle').isVisible())await page.locator('#nav-mobile-toggle').click();
 });
 
 test('navega por atalhos e abre a busca global',async({page})=>{
@@ -25,6 +26,7 @@ test('mantém a navegação e ações principais acessíveis no mobile',async({p
 
 test('não gera erros JavaScript na carga e navegação principal',async({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
+  await page.locator('.nav-group-toggle').filter({hasText:'Mais'}).click();
   for(const label of ['Balanço','Histórico','Planejamento','Cartões','Dívidas','Auditoria','Cadastro']){
     await page.getByRole('button',{name:label,exact:true}).click();
   }
