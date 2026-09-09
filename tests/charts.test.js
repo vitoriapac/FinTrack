@@ -1,0 +1,7 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const context={window:{FinTrackCore:{totals:()=>({receitas:100,despesas:60}),budgetSummary:(_d,_id,_m,_y,p)=>({comprometido:p+20,percentualComprometido:120}),categorySpend:(_d,id)=>id==='a'?80:id==='b'?20:0},ProjectionService:{project:()=>({meses:[{mes:'2026-09',saldoFinal:100,menorSaldo:50}]})}}};vm.createContext(context);
+vm.runInContext(fs.readFileSync('js/services/chart-data.js','utf8'),context);vm.runInContext(fs.readFileSync('js/ui/charts.js','utf8'),context);
+const data={categorias:[{id:'a',nome:'A',tipo:'Saída'},{id:'b',nome:'B',tipo:'Saída'}],planejamentos:{'2026-09':{orcamentos:{a:100}}},fechamentos:{'2026-08':{snapshot:{versao:4,patrimonioLiquido:500}}}};
+assert.equal(context.window.ChartDataService.cashflow(data,'2026-09',2).length,2);assert.equal(context.window.ChartDataService.budgets(data,'2026-09')[0].excesso,20);assert.deepEqual(JSON.parse(JSON.stringify(context.window.ChartDataService.patrimony(data))),[{label:'2026-08',value:500}]);
+const chart=context.window.FinTrackCharts.donut({title:'Categorias',question:'Onde?',summary:'Resumo textual',data:[{label:'A',value:80}]});assert.match(chart,/role="img"/);assert.match(chart,/Resumo textual/);assert.match(chart,/<title>A: 80<\/title>/);assert.match(context.window.FinTrackCharts.line({title:'Sem dados',question:'?',summary:'Nada',data:[]}),/Sem dados suficientes/);
+console.log('chart tests: OK');
