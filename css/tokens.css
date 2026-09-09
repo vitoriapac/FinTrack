@@ -1,7 +1,7 @@
 :root{
   --ink:#1C2620;--forest:#24402F;--forest-dark:#182B20;--paper:#F0ECE2;--paper-alt:#E8E2D2;
   --card:#FBF9F3;--line:#D9D2BF;--line-soft:#E5DFCE;--income:#4B7A57;--expense:#9C4A2E;
-  --gold:#B9862F;--muted:#766F5E;--radius:3px;
+  --gold:#B9862F;--muted:#6C6556;--radius:3px;
   --bg-primary:var(--paper);--bg-secondary:var(--paper-alt);--surface:var(--card);--surface-alt:var(--paper-alt);
   --text-primary:var(--ink);--text-secondary:var(--muted);--positive:var(--income);--negative:var(--expense);--warning:var(--gold);
 }

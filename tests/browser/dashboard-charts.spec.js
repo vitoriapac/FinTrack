@@ -11,6 +11,6 @@ test('dashboard apresenta gráficos acessíveis e equivalentes textuais',async({
 });
 
 test('gráficos usam fallback explícito em séries sem dados',async({page})=>{
-  await expect(page.locator('[data-chart="line"]').filter({hasText:'Evolução patrimonial'}).locator('.chart-empty')).toContainText('Sem dados suficientes');
-  await expect(page.locator('[data-chart="donut"]').filter({hasText:'Despesas por categoria'}).locator('.chart-empty')).toContainText('Sem dados suficientes');
+  await expect(page.locator('[data-chart="line"]').filter({hasText:'Evolução patrimonial'}).locator('.chart-empty')).toContainText('Ainda faltam dados');
+  await expect(page.locator('[data-chart="donut"]').filter({hasText:'Despesas por categoria'}).locator('.chart-empty')).toContainText('Ainda faltam dados');
 });

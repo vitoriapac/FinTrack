@@ -1,0 +1,3 @@
+const assert=require('node:assert/strict'),fs=require('node:fs');
+const css=fs.readFileSync('css/tokens.css','utf8'),hex=name=>css.match(new RegExp(`--${name}:(#[0-9A-Fa-f]{6})`))[1],lum=value=>{const rgb=value.slice(1).match(/../g).map(part=>parseInt(part,16)/255).map(channel=>channel<=.03928?channel/12.92:Math.pow((channel+.055)/1.055,2.4));return .2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2];},ratio=(a,b)=>{const values=[lum(a),lum(b)].sort((x,y)=>y-x);return (values[0]+.05)/(values[1]+.05);};
+assert.ok(ratio(hex('muted'),hex('paper'))>=4.5,'muted deve atender AA sobre paper');assert.ok(ratio(hex('muted'),hex('card'))>=4.5,'muted deve atender AA sobre card');console.log('visual contract tests: OK');
