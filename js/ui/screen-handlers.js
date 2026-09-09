@@ -9,6 +9,7 @@ function attachViewHandlers(){
   main.querySelectorAll('[data-action="export-closing-pdf"]').forEach(button=>button.onclick=()=>FinTrackPdfReport.open(button.dataset.key,state.fechamentos[button.dataset.key]));
   const btnHomeNovo = document.getElementById('btn-home-novo');
   if(btnHomeNovo) btnHomeNovo.onclick = () => FinTrackForms.open('lancamento',null);
+  const emptyGoal=document.getElementById('btn-empty-nova-meta');if(emptyGoal)emptyGoal.onclick=()=>FinTrackForms.open('meta');
   const demoRestore=document.getElementById('btn-demo-restaurar');
   if(demoRestore) demoRestore.onclick=restaurarDadosAnteriores;
   const btnMostrarLanc = document.getElementById('btn-mostrar-lancamentos');
