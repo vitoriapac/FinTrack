@@ -1,6 +1,6 @@
 {
   "name": "fintrack",
-  "version": "2.7.1",
+  "version": "2.7.2",
   "private": true,
   "description": "FinTrack — controle financeiro pessoal local",
   "scripts": {

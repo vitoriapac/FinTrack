@@ -1,0 +1,3 @@
+const {test,expect}=require('@playwright/test');
+test.beforeEach(async({page})=>{await page.goto('/');await page.evaluate(()=>localStorage.clear());await page.reload();if(await page.locator('#nav-mobile-toggle').isVisible())await page.locator('#nav-mobile-toggle').click();await page.getByRole('button',{name:'Projeção',exact:true}).click();});
+test('projeção separa confirmado, planejado e consolidado',async({page})=>{await expect(page.getByRole('columnheader',{name:'Confirmado'})).toBeVisible();await expect(page.getByRole('columnheader',{name:'Planejado'})).toBeVisible();await expect(page.getByRole('columnheader',{name:'Projetado'})).toBeVisible();await expect(page.locator('[data-chart="area"]')).toContainText('Saldo projetado');});
