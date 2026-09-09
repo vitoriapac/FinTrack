@@ -8,7 +8,7 @@ const BACKUPS_KEY = 'fintrack-backups-v1';
 const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 const DEFAULT_DATA = {
-  usuario: { nome: 'Vitoria' },
+  usuario: { nome: '', onboardingIgnorado: false },
   categorias: [
     { id: 'cat-mercado', nome: '🛒 Mercado', tipo: 'Saída', tipoGasto: 'Essencial', orcado: 450 },
     { id: 'cat-necessidades', nome: '⚠️ Necessidades', tipo: 'Saída', tipoGasto: 'Essencial', orcado: 50 },
@@ -445,7 +445,7 @@ function importarCSV(e){
 
 function criarDadosDemo(){
   const base = JSON.parse(JSON.stringify(DEFAULT_DATA));
-  base.usuario = { nome: state?.usuario?.nome || 'Vitoria' };
+  base.usuario = { nome: state?.usuario?.nome || '', onboardingIgnorado: state?.usuario?.onboardingIgnorado||false };
   base.lancamentos = [];
   const hoje=todayLocal();
   const primeiro=hoje.slice(0,8)+'01';

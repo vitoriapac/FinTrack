@@ -148,6 +148,8 @@
   .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11.5px;font-weight:500;}
   .badge-paid{background:rgba(75,122,87,0.15);color:var(--income);}
   .badge-pending{background:rgba(156,74,46,0.13);color:var(--expense);}
+  .profile-welcome{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;gap:16px}.profile-welcome p{margin:4px 0 0;color:var(--muted)}
+  .insight-card-title,.insight-metrics{display:flex;justify-content:space-between;gap:12px}.insight-card-title{align-items:flex-start}.insight-metrics{margin:14px 0}.insight-metrics div{display:grid;gap:3px}.insight-metrics span{font-size:11.5px;color:var(--muted)}.insight-metrics strong{font-size:17px}.insight-comparison{color:var(--muted);font-size:13px}.insight-progress{height:7px;background:var(--paper-alt);overflow:hidden;margin:10px 0}.insight-progress span{display:block;height:100%;background:var(--expense)}.insight-card details{margin:12px 0;font-size:13px}.insight-card summary{cursor:pointer;color:var(--forest);font-weight:600}
 
   select, input{width:100%;}
   @media (max-width:900px){main{padding:28px 24px}.cards-row{grid-template-columns:repeat(2,minmax(0,1fr))}.projection-row{grid-template-columns:repeat(2,1fr)}.projection-item:nth-child(2){border-right:0}.balance-section table{min-width:1050px}.closing-months{grid-template-columns:repeat(6,1fr)}.today-grid{grid-template-columns:1fr 1fr}.today-action{grid-column:1/-1;border-top:1px solid var(--line-soft)}}
