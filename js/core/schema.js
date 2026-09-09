@@ -1,5 +1,5 @@
 (function(){
-  const CURRENT_SCHEMA_VERSION=7;
+  const CURRENT_SCHEMA_VERSION=8;
   const MONEY_FIELDS={
     contas:['saldoInicial'],
     categorias:['orcado'],
@@ -15,5 +15,5 @@
     ativosInvestimento:['valorAtual'],
     despesasAnuais:['valorEstimado'],
   };
-  window.FinTrackSchema={version:CURRENT_SCHEMA_VERSION,moneyFields:MONEY_FIELDS,requiredCollections:['contas','categorias','lancamentos','metas','cartoes','dividas','ativosInvestimento','despesasAnuais','pagamentosCartao','pagamentosDividas','historico','lixeira','quarentena','operacoes','series']};
+  window.FinTrackSchema={version:CURRENT_SCHEMA_VERSION,moneyFields:MONEY_FIELDS,requiredCollections:['contas','categorias','lancamentos','metas','cartoes','dividas','ativosInvestimento','despesasAnuais','pagamentosCartao','pagamentosDividas','historico','lixeira','quarentena','operacoes','series','recurrenceDecisions']};
 })();

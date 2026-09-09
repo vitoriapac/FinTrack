@@ -1,0 +1,9 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const context={window:{}};vm.createContext(context);for(const file of ['js/financial-core.js','js/services/future.js','js/services/analysis.js','js/services/daily-cashflow.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
+const months=['2026-01-05','2026-02-04','2026-03-06'];
+const data={contas:[{id:'a',nome:'Conta',saldoInicial:100000,dataSaldoInicial:'2025-01-01'}],categorias:[{id:'c',nome:'Serviços',tipo:'Saída',essencial:true}],lancamentos:months.map((date,index)=>({id:`r${index}`,tipo:'Despesa',tipoOperacao:'despesa',status:'Pago',data:date,valor:4000+index*10,descricao:'Streaming 123',categoriaId:'c',contaId:'a'})),planejamentos:{'2026-04':{receita:200000,investimento:20000,orcamentos:{c:50000}}},fechamentos:{},ativosInvestimento:[],dividas:[],despesasAnuais:[],recurrenceDecisions:[]};
+const before=JSON.stringify(data),recurring=context.window.AnalysisService.recurringExpenses(data,{today:'2026-04-01'});assert.equal(recurring.evidence.detected.length,1);assert.equal(recurring.evidence.detected[0].anual,recurring.evidence.detected[0].mensal*12);assert.equal(JSON.stringify(data),before,'análises devem ser puras');
+const commitment=context.window.AnalysisService.futureCommitment(data,{startMonth:'2026-04',months:1});assert.equal(commitment.metrics.length,1);assert.equal(commitment.metrics[0].commitmentRate,35);
+const daily=context.window.DailyCashflowService.project(data,'2026-04',{today:'2026-04-01'});assert.equal(daily.length,30);assert.ok(daily.every(item=>['normal','atencao','critico'].includes(item.status)));
+assert.equal(context.window.AnalysisService.monthAnomaly(data,{month:'2026-04'}).status,'indisponivel');assert.equal(context.window.AnalysisService.expenseConcentration(data,{month:'2026-04'}).status,'indisponivel');
+console.log('analysis tests: OK');
