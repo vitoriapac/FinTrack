@@ -19,7 +19,8 @@ test('agenda alterna calendário e lista, filtra e abre o painel diário',async(
   await page.getByRole('button',{name:/10 de .*1 evento/}).click();
   await expect(page.getByRole('dialog')).toContainText('Conta da agenda');
   await expect(page.getByRole('button',{name:'Marcar como pago'})).toBeVisible();
-  await page.getByRole('button',{name:'Fechar detalhes do dia'}).click();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.getByRole('tab',{name:'Lista'}).click();
   await expect(page.getByRole('cell',{name:'Conta da agenda'})).toBeVisible();
   await page.getByLabel('Tipo').selectOption('receita');

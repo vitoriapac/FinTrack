@@ -24,6 +24,16 @@ test('mantém a navegação e ações principais acessíveis no mobile',async({p
   await expect(page.locator('.transaction-table')).toBeHidden();
 });
 
+test('ações secundárias e filtros não sobrecarregam o cabeçalho',async({page})=>{
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  await expect(page.locator('.page-actions>button')).toHaveCount(1);
+  await page.locator('.action-menu summary').click();
+  await expect(page.getByRole('button',{name:'Transferir entre contas'})).toBeVisible();
+  await page.locator('.action-menu summary').click();
+  const filterToggle=page.locator('.filters-toggle');
+  if(await filterToggle.isVisible()){await expect(page.locator('.filters-wrap')).not.toBeVisible();await filterToggle.click();await expect(page.locator('.filters-wrap')).toBeVisible();}
+});
+
 test('não gera erros JavaScript na carga e navegação principal',async({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.locator('.nav-group-toggle').filter({hasText:'Mais'}).click();

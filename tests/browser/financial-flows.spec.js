@@ -61,11 +61,13 @@ test('transferência e investimento preservam resultado e movimentam as contas',
     return {a:FinTrackCore.accountBalance(data,data.contas[0],todayLocal()),b:FinTrackCore.accountBalance(data,data.contas[1],todayLocal())};
   });
 
+  await page.locator('.action-menu summary').click();
   await page.getByRole('button',{name:'Transferir entre contas'}).click();
   await page.locator('#tr-status').selectOption('Pago');
   await page.locator('#tr-valor').fill('30');
   await page.locator('#tr-save').click();
 
+  await page.locator('.action-menu summary').click();
   await page.getByRole('button',{name:'Novo investimento'}).click();
   await page.locator('#inv-status').selectOption('Pago');
   await page.locator('#inv-ativo').fill('Tesouro E2E');
@@ -73,6 +75,7 @@ test('transferência e investimento preservam resultado e movimentam as contas',
   await page.locator('#inv-valor').fill('40');
   await page.locator('#inv-save').click();
 
+  await page.locator('.action-menu summary').click();
   await page.getByRole('button',{name:'Novo investimento'}).click();
   await page.locator('#inv-tipo').selectOption('resgate');
   await page.locator('#inv-status').selectOption('Pago');

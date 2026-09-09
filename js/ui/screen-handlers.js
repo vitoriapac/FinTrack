@@ -21,6 +21,8 @@ function attachViewHandlers(){
   if(btnTransferencia) btnTransferencia.onclick = () => FinTrackForms.open('transferencia');
   const btnInvestimento = document.getElementById('btn-novo-investimento');
   if(btnInvestimento) btnInvestimento.onclick = () => FinTrackForms.open('investimento');
+  if(btnTransferencia&&btnInvestimento){const actions=btnTransferencia.parentElement,menu=document.createElement('details'),summary=document.createElement('summary'),body=document.createElement('div');menu.className='action-menu';summary.className='btn btn-ghost';summary.textContent='Mais ações';body.append(btnTransferencia,btnInvestimento);menu.append(summary,body);actions.prepend(document.getElementById('btn-novo-lancamento'));actions.append(menu);}
+  const transactionFilters=main.querySelector('.filters');if(transactionFilters&&currentView==='lancamentos'){const wrap=document.createElement('div'),toggle=document.createElement('button');wrap.className='filters-wrap';wrap.id='transaction-filters';transactionFilters.before(wrap);wrap.append(transactionFilters);toggle.className='filters-toggle btn btn-ghost';toggle.textContent='Filtros';toggle.setAttribute('aria-controls',wrap.id);toggle.setAttribute('aria-expanded','false');wrap.before(toggle);toggle.onclick=()=>{const open=wrap.classList.toggle('is-open');toggle.setAttribute('aria-expanded',String(open));};}
 
   main.querySelectorAll('[data-action="edit-lanc"]').forEach(b => b.onclick = () => {
     let lanc = state.lancamentos.find(l => l.id === b.dataset.id);
@@ -83,7 +85,7 @@ function attachViewHandlers(){
   main.querySelectorAll('[data-agenda-mode]').forEach(button=>button.onclick=()=>{agendaModo=button.dataset.agendaMode;agendaDiaSelecionado=null;render();});
   main.querySelectorAll('[data-agenda-day]').forEach(button=>button.onclick=()=>{agendaDiaSelecionado=button.dataset.agendaDay;render();document.getElementById('agenda-close-day')?.focus();});
   main.querySelectorAll('[data-agenda-open]').forEach(button=>button.onclick=()=>{const item=AgendaService.project(state,{start:`${agendaMes}-01`,end:addMonths(`${agendaMes}-01`,1).slice(0,7)+'-01'}).find(entry=>entry.id===button.dataset.agendaOpen);if(item){agendaDiaSelecionado=item.vencimento;render();document.getElementById('agenda-close-day')?.focus();}});
-  const closeAgendaDay=document.getElementById('agenda-close-day');if(closeAgendaDay)closeAgendaDay.onclick=()=>{agendaDiaSelecionado=null;render();};
+  const closeAgendaDay=document.getElementById('agenda-close-day');window.closeAgendaPanel=()=>{if(!agendaDiaSelecionado)return;agendaDiaSelecionado=null;render();};if(closeAgendaDay)closeAgendaDay.onclick=window.closeAgendaPanel;
   main.querySelectorAll('[data-agenda-link]').forEach(button=>button.onclick=()=>setView(button.dataset.agendaLink.split(':')[0]||'lancamentos'));
   main.querySelectorAll('[data-agenda-pay]').forEach(button=>button.onclick=async()=>{const lanc=state.lancamentos.find(item=>item.id===button.dataset.agendaPay);if(!lanc||impedirAlteracaoMes(lanc.data))return;const result=FinTrackServices.entries.toggleStatus(state,lanc.id);FinTrackState.replaceState(result.state);registrarHistorico('alteracao_status',`Status alterado para ${result.status}: ${lanc.descricao}`,{lancamentoIds:result.items.map(item=>item.id),operacaoId:lanc.operacaoId||null});await saveData();agendaDiaSelecionado=null;render();});
   const saveProfile=document.getElementById('btn-save-profile');if(saveProfile)saveProfile.onclick=async()=>{await saveProfileName(document.getElementById('profile-name').value);render();};
