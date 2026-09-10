@@ -3,7 +3,8 @@ test.beforeEach(async({page})=>{await page.goto('/');await page.evaluate(()=>loc
 
 test('dashboard apresenta gráficos acessíveis e equivalentes textuais',async({page})=>{
   await expect(page.locator('[data-chart="bars"]')).toContainText('Receitas × despesas');
-  await expect(page.locator('[data-chart="horizontal"]')).toContainText('Orçamento comprometido');
+  await expect(page.locator('[data-chart="horizontal"]').filter({hasText:'Orçamento comprometido'})).toBeVisible();
+  await expect(page.locator('[data-chart="horizontal"]').filter({hasText:'Comprometimento futuro'})).toBeVisible();
   await expect(page.locator('[data-chart="area"]')).toContainText('Saldo projetado');
   await expect(page.locator('[data-chart="line"]').filter({hasText:'Evolução patrimonial'})).toBeVisible();
   await expect(page.locator('[data-chart="donut"]').filter({hasText:'Despesas por categoria'})).toBeVisible();
