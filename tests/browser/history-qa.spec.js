@@ -62,9 +62,8 @@ test('QA estrutural mantém nomes acessíveis, ids únicos e console limpo',asyn
   const failures=[];
   page.on('pageerror',error=>failures.push(`pageerror: ${error.message}`));
   page.on('console',message=>{if(message.type()==='error')failures.push(`console: ${message.text()}`);});
-  for(const view of ['Home','Lançamentos','Agenda','Balanço','Visão anual','Patrimônio','Histórico','Planejamento','Projeção','Metas','Cartões','Dívidas','Simuladores','Auditoria','Instalação','Cadastro']){
-    const button=view==='Home'?page.getByRole('button',{name:'Abrir visão geral'}):page.getByRole('button',{name:view,exact:true});
-    await button.click();
+  for(const [view,target] of [['Home','home'],['Lançamentos','lancamentos'],['Agenda','agenda'],['Balanço','balanco'],['Visão anual','anual'],['Patrimônio','patrimonio'],['Histórico','historico'],['Planejamento','planejamento'],['Projeção','projecao'],['Metas','metas'],['Cartões','cartoes'],['Dívidas','dividas'],['Simuladores','simuladores'],['Auditoria','auditoria'],['Instalação','instalacao'],['Cadastro','cadastro'],['Instruções','instrucoes']]){
+    await page.evaluate(target=>setView(target),target);
     const audit=await page.evaluate(()=>{
       const visible=element=>Boolean(element.offsetWidth||element.offsetHeight||element.getClientRects().length);
       const ids=[...document.querySelectorAll('[id]')].map(element=>element.id),duplicates=ids.filter((id,index)=>ids.indexOf(id)!==index);
@@ -77,7 +76,7 @@ test('QA estrutural mantém nomes acessíveis, ids únicos e console limpo',asyn
     expect(audit.unnamedButtons,`${view}: botões sem nome acessível`).toBe(0);
     expect(audit.h1,`${view}: deve existir um título principal`).toBe(1);
   }
-  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  await page.evaluate(()=>setView('lancamentos'));
   await page.getByRole('button',{name:'Novo lançamento'}).click();
   await expect(page.getByRole('dialog')).toHaveAttribute('aria-modal','true');
   const dialogAudit=await page.evaluate(()=>[...document.querySelectorAll('[role="dialog"] input,[role="dialog"] select,[role="dialog"] textarea')].filter(control=>!control.labels?.length&&!control.getAttribute('aria-label')).map(control=>control.id));

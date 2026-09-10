@@ -17,3 +17,9 @@ Normal usa verde, Atenção usa dourado e Crítico usa terracota. Toda cor possu
 ## Controles e estados vazios
 
 Controles têm altura mínima de 42px e foco dourado. Períodos mensais exibem o mês por extenso, preservando `YYYY-MM` internamente. Cada tela apresenta no máximo um estado vazio principal, sempre com explicação e uma única ação contextual.
+
+## Navegação e densidade
+
+Somente Visão geral permanece no primeiro nível. Movimentações, Planejar, Analisar e Mais iniciam recolhidos e apenas o grupo da página ativa é expandido. Instalação, offline e dados ficam nas tabs de Configurações; Instruções reúne a orientação de uso.
+
+Na Home, diagnósticos e gráficos formam pares compatíveis; um painel isolado ocupa a largura total. Agenda integra a memória do menor saldo ao gráfico diário. Projeção usa cinco colunas no desktop e cards expansíveis no mobile, sempre mantendo valores monetários em uma única linha.

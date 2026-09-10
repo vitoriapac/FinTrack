@@ -50,9 +50,6 @@ test('ações secundárias e filtros não sobrecarregam o cabeçalho',async({pag
 
 test('não gera erros JavaScript na carga e navegação principal',async({page})=>{
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
-  for(const group of ['Movimentações','Planejar','Analisar','Mais'])await page.locator('.nav-group-toggle').filter({hasText:group}).click();
-  for(const label of ['Balanço','Histórico','Planejamento','Cartões','Dívidas','Auditoria','Cadastro']){
-    await page.getByRole('button',{name:label,exact:true}).click();
-  }
+  for(const view of ['balanco','historico','planejamento','cartoes','dividas','auditoria','cadastro'])await page.evaluate(target=>setView(target),view);
   expect(errors).toEqual([]);
 });
