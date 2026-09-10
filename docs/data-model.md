@@ -1,6 +1,6 @@
-# Modelo de dados — schema v8
+# Modelo de dados — schema v9
 
-O estado persistido é um documento JSON local. `schemaVersion: 8` e `__centsVersion: 1` identificam o contrato atual.
+O estado persistido é um documento JSON local. `schemaVersion: 9` e `__centsVersion: 1` identificam o contrato atual. A partir da v9, investimentos podem declarar explicitamente `aporteReservaEmergencia`; registros antigos permanecem `false`.
 
 | Coleção | Responsabilidade |
 | --- | --- |

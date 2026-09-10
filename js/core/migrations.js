@@ -44,7 +44,7 @@
     data.categorias=data.categorias.map(item=>({...item,essencial:Boolean(item.essencial)}));
     data.contas=(Array.isArray(data.contas)?data.contas:[]).map(item=>({...item,reservaEmergencia:Boolean(item.reservaEmergencia)}));
     data.ativosInvestimento=(Array.isArray(data.ativosInvestimento)?data.ativosInvestimento:[]).map(item=>({...item,reservaEmergencia:Boolean(item.reservaEmergencia)}));
-    data.lancamentos=data.lancamentos.map(item=>({...item,extraordinario:Boolean(item.extraordinario)}));
+    data.lancamentos=data.lancamentos.map(item=>({...item,extraordinario:Boolean(item.extraordinario),aporteReservaEmergencia:Boolean(item.aporteReservaEmergencia)}));
     data.configuracoesFinanceiras={...(data.configuracoesFinanceiras&&typeof data.configuracoesFinanceiras==='object'?data.configuracoesFinanceiras:{}),reservaMeses:[3,6,9,12].includes(Number(data.configuracoesFinanceiras?.reservaMeses))?Number(data.configuracoesFinanceiras.reservaMeses):6};
     const operations=new Map((Array.isArray(data.operacoes)?data.operacoes:[]).filter(item=>item?.id).map(item=>[item.id,{...item}]));
     data.lancamentos.filter(item=>item.operacaoId).forEach(item=>{

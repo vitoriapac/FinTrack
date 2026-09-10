@@ -1,5 +1,5 @@
 (function(){
-  const CURRENT_SCHEMA_VERSION=8;
+  const CURRENT_SCHEMA_VERSION=9;
   const MONEY_FIELDS={
     contas:['saldoInicial'],
     categorias:['orcado'],
