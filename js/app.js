@@ -212,6 +212,8 @@ async function alternarSerie(serieId){
 /* ---------- Navegação ---------- */
 
 function setView(view){
+  if(view==='instalacao'){configuracoesTab='aplicativo';view='configuracoes';}
+  if(view.includes(':')){const [base,subview]=view.split(':');view=base;if(base==='configuracoes'&&subview)configuracoesTab=subview;}
   currentView = view;
   document.querySelectorAll('.nav-item').forEach(b => { const active=b.dataset.view===view; b.classList.toggle('active',active); active?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current');if(active&&b.closest('.nav-submenu')){document.querySelectorAll('.nav-group-toggle').forEach(toggle=>{const own=toggle.nextElementSibling===b.closest('.nav-submenu');toggle.setAttribute('aria-expanded',String(own));toggle.nextElementSibling.hidden=!own;});} });
   render();

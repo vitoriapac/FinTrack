@@ -143,6 +143,8 @@ function attachViewHandlers(){
   const annualExcel=document.getElementById('btn-export-annual-excel');if(annualExcel)annualExcel.onclick=()=>baixarArquivo(`fintrack-anual-${balancoAno}.xls`,AnnualReportService.excel(state,balancoAno),'application/vnd.ms-excel');
   const backupFile=document.getElementById('backup-file');
   if(backupFile) backupFile.onchange=importarJSON;
+  const configImport=document.getElementById('config-import');if(configImport)configImport.onchange=importarJSON;
+  main.querySelectorAll('[data-config-action]').forEach(button=>button.onclick=()=>document.getElementById(`footer-${button.dataset.configAction}`)?.click());
   const footerImport=document.getElementById('footer-import');if(footerImport)footerImport.onchange=importarJSON;
   const footerBackup=document.getElementById('footer-backup');if(footerBackup)footerBackup.onclick=exportarJSON;
   const footerRecovery=document.getElementById('footer-recovery');if(footerRecovery)footerRecovery.onclick=exportarArquivoRecuperacao;

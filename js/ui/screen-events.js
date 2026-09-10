@@ -2,7 +2,7 @@
   const handlers=[];
   window.FinTrackScreenEvents={register(handler){handlers.push(handler);},attach(main){handlers.forEach(handler=>handler(main));}};
   FinTrackScreenEvents.register(main=>{
-    main.querySelectorAll('.tab-btn').forEach(button=>button.onclick=()=>{cadastroTab=button.dataset.tab;render();});
+    main.querySelectorAll('.tab-btn').forEach(button=>button.onclick=()=>{if(button.dataset.configTab)configuracoesTab=button.dataset.configTab;else cadastroTab=button.dataset.tab;render();});
   });
   FinTrackScreenEvents.register(main=>{
     const novoCartao=document.getElementById('btn-novo-cartao');
