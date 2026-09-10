@@ -213,7 +213,7 @@ async function alternarSerie(serieId){
 
 function setView(view){
   currentView = view;
-  document.querySelectorAll('.nav-item').forEach(b => { const active=b.dataset.view===view; b.classList.toggle('active',active); active?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current'); });
+  document.querySelectorAll('.nav-item').forEach(b => { const active=b.dataset.view===view; b.classList.toggle('active',active); active?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current');if(active&&b.closest('.nav-submenu')){document.querySelectorAll('.nav-group-toggle').forEach(toggle=>{const own=toggle.nextElementSibling===b.closest('.nav-submenu');toggle.setAttribute('aria-expanded',String(own));toggle.nextElementSibling.hidden=!own;});} });
   render();
 }
 
