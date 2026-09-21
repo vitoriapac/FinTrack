@@ -217,8 +217,18 @@ function setView(view){
   if(view==='instalacao'){configuracoesTab='aplicativo';view='configuracoes';}
   if(view.includes(':')){const [base,subview]=view.split(':');view=base;if(base==='configuracoes'&&subview)configuracoesTab=subview;}
   currentView = view;
-  document.querySelectorAll('.nav-item').forEach(b => { const active=b.dataset.view===view; b.classList.toggle('active',active); active?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current');if(active&&b.closest('.nav-submenu')){document.querySelectorAll('.nav-group-toggle').forEach(toggle=>{const own=toggle.nextElementSibling===b.closest('.nav-submenu');toggle.setAttribute('aria-expanded',String(own));toggle.nextElementSibling.hidden=!own;});} });
+    document.querySelectorAll('.nav-item').forEach(b => { const active=b.dataset.view===view; b.classList.toggle('active',active); active?b.setAttribute('aria-current','page'):b.removeAttribute('aria-current');if(active&&b.closest('.nav-submenu')){document.querySelectorAll('.nav-group-toggle').forEach(toggle=>{const own=toggle.nextElementSibling===b.closest('.nav-submenu');toggle.setAttribute('aria-expanded',String(own));toggle.nextElementSibling.hidden=!own;});} });
+    document.querySelectorAll('[data-mobile-view]').forEach(button=>{if(button.dataset.mobileView===view)button.setAttribute('aria-current','page');else button.removeAttribute('aria-current');});
   render();
+}
+
+function navigateToInsight(destination){
+  const target=typeof destination==='string'?{view:destination}:destination||{},view=String(target.view||'home'),month=/^\d{4}-\d{2}$/.test(target.month||'')?target.month:null,date=/^\d{4}-\d{2}-\d{2}$/.test(target.date||'')?target.date:null;
+  if(view==='agenda'){agendaMes=date?.slice(0,7)||month||agendaMes;agendaDiaSelecionado=date?.startsWith(agendaMes)?date:null;}
+  if(view==='planejamento'&&month)planejamentoMes=month;
+  setView(view);
+  const main=document.getElementById('main'),focusTarget=view==='agenda'&&date?document.getElementById('agenda-close-day'):view==='planejamento'&&target.categoryId?[...main.querySelectorAll('[data-planning-category]')].find(item=>item.dataset.planningCategory===target.categoryId):view==='projecao'&&month?[...main.querySelectorAll('[data-projection-month]')].find(item=>item.dataset.projectionMonth===month):null;
+  if(focusTarget){focusTarget.setAttribute('tabindex','-1');focusTarget.focus();focusTarget.scrollIntoView({block:'center'});}else main.focus();
 }
 
 FinTrackNavigation.mount();

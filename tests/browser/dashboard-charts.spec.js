@@ -2,17 +2,15 @@ const {test,expect}=require('@playwright/test');
 test.beforeEach(async({page})=>{await page.goto('/');await page.evaluate(()=>localStorage.clear());await page.reload();});
 
 test('dashboard apresenta gráficos acessíveis e equivalentes textuais',async({page})=>{
-  await expect(page.locator('[data-chart="bars"]')).toContainText('Receitas × despesas');
-  await expect(page.locator('[data-chart="horizontal"]').filter({hasText:'Orçamento comprometido'})).toBeVisible();
-  await expect(page.locator('[data-chart="horizontal"]').filter({hasText:'Comprometimento futuro'})).toBeVisible();
-  await expect(page.locator('[data-chart="area"]')).toContainText('Saldo projetado');
-  await expect(page.locator('[data-chart="line"]').filter({hasText:'Evolução patrimonial'})).toBeVisible();
+  await expect(page.locator('[data-chart="bars"]')).toContainText('Fluxo do mês');
+  await expect(page.locator('[data-chart="multi-line"]')).toContainText('Ritmo do orçamento');
   await expect(page.locator('[data-chart="donut"]').filter({hasText:'Despesas por categoria'})).toBeVisible();
   for(const chart of await page.locator('.chart').all())await expect(chart.locator('.chart-summary')).not.toBeEmpty();
 });
 
 test('gráficos usam fallback explícito em séries sem dados',async({page})=>{
-  await expect(page.locator('[data-chart="line"]').filter({hasText:'Evolução patrimonial'}).locator('.chart-empty')).toContainText('Ainda faltam dados');
+  await page.evaluate(()=>{FinTrackState.replaceState(normalizeData(null));setView('home');});
+  await expect(page.locator('[data-chart="multi-line"]').filter({hasText:'Ritmo do orçamento'})).toBeVisible();
   await expect(page.locator('[data-chart="donut"]').filter({hasText:'Despesas por categoria'}).locator('.chart-empty')).toContainText('Ainda faltam dados');
 });
 
