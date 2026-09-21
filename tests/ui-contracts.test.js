@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const html = fs.readFileSync('index.html', 'utf8');
 const requiredScripts = [
   'js/financial-core.js',
+  'js/services/health.js',
+  'js/services/decision.js',
   'js/services/analysis/core.js',
   'js/services/analysis/index.js',
   'js/ui/screen-events.js',
@@ -45,7 +47,8 @@ assert.ok(app.includes('foi revertida integralmente'));
 assert.ok(app.includes('MODO DEMO'));
 const home=fs.readFileSync('js/views/home.js','utf8');
 assert.ok(home.includes('MetricCard.render'));
-assert.ok(home.includes('Leitura financeira'));
+assert.ok(home.includes('Sua situação agora'));
+assert.ok(home.includes('Próximas ações'));
 assert.ok(!home.includes('JSON.stringify(item.evidencia)'));
 assert.ok(home.includes('DataPanel.render'));
 assert.ok(home.includes('InsightCard.render'));
@@ -61,8 +64,9 @@ const css=fs.readFileSync('css/app.css','utf8');
 assert.ok(css.includes('min-height:100vh;margin:0 auto;display:flex;flex-direction:column'));
 assert.ok(css.includes('.app-footer{margin-top:auto'));
 assert.ok(html.includes('js/ui/form-validation.js'));
-assert.ok(fs.readFileSync('js/views/home.js','utf8').includes('O que fazer hoje'));
-assert.ok(fs.readFileSync('js/views/home.js','utf8').includes('Próxima ação'));
+assert.ok(fs.readFileSync('js/views/analises.js','utf8').includes('Central de decisão'));
+assert.ok(fs.readFileSync('js/views/analises.js','utf8').includes('Próximas três ações'));
+assert.doesNotMatch(app,/function calcularSaudeFinanceira/);
 assert.ok(fs.readFileSync('js/views/planejamento.js','utf8').includes('Orçamento operacional'));
 assert.ok(fs.readFileSync('js/views/planejamento.js','utf8').includes('Acompanhamento'));
 assert.ok(fs.readFileSync('js/views/historico.js','utf8').includes('lancamentosDetalhados'));

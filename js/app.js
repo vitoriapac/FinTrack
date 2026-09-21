@@ -239,33 +239,6 @@ function render(){
 
 /* ================= HOME ================= */
 
-function calcularSaudeFinanceira(mes,ano){
-  const t=totaisDoMes(mes,ano), pendentes=state.lancamentos.filter(l=>l.status==='Pendente'&&serieEstaAtiva(l)&&naturezaLancamento(l)==='despesa');
-  const vencidos=pendentes.filter(l=>(l.dataVencimento||l.data)<todayLocal()).length;
-  const estouradas=state.categorias.filter(c=>c.tipo==='Saída'&&c.orcado>0&&gastoPorCategoria(c.id,mes,ano)>c.orcado).length;
-  const invest=totalPorNatureza(mes,ano,'investimento','Pago');
-  const componentes=[
-    {nome:'Resultado',max:25,pontos:t.saldo>=0?25:0,detalhe:t.saldo>=0?'O mês terminou positivo.':'O resultado mensal está negativo.'},
-    {nome:'Pendências',max:20,pontos:Math.max(0,20-Math.min(20,vencidos*6)),detalhe:vencidos?`${vencidos} vencimento(s) atrasado(s).`:'Nenhum vencimento atrasado.'},
-    {nome:'Orçamento',max:20,pontos:Math.max(0,20-Math.min(20,estouradas*7)),detalhe:estouradas?`${estouradas} categoria(s) acima do orçamento.`:'Categorias dentro do orçamento.'},
-    {nome:'Comprometimento',max:20,pontos:t.receitas>0&&t.despesas/t.receitas>.7?5:20,detalhe:t.receitas>0&&t.despesas/t.receitas>.7?'Despesas acima de 70% das receitas.':'Comprometimento sob controle.'},
-    {nome:'Investimentos',max:15,pontos:invest>0?15:8,detalhe:invest>0?'Houve investimento no período.':'Nenhum investimento registrado no período.'},
-  ];
-  const pontos=componentes.reduce((sum,item)=>sum+item.pontos,0),fatores=componentes.filter(item=>item.pontos<item.max).map(item=>item.detalhe);
-  return {pontos,fatores,componentes};
-}
-function gerarRecomendacoes(mes,ano){
-  const t=totaisDoMes(mes,ano), pendentes=state.lancamentos.filter(l=>l.status==='Pendente'&&serieEstaAtiva(l)&&naturezaLancamento(l)==='despesa');
-  const vencidos=pendentes.filter(l=>(l.dataVencimento||l.data)<todayLocal());
-  const estourada=state.categorias.find(c=>c.tipo==='Saída'&&c.orcado>0&&gastoPorCategoria(c.id,mes,ano)>c.orcado);
-  const recomendacoes=[];
-  if(vencidos.length) recomendacoes.push({prioridade:'Alta',texto:`Priorize ${vencidos.length} vencimento(s) atrasado(s), totalizando ${formatMoney(vencidos.reduce((s,l)=>s+Number(l.valor),0))}.`});
-  if(t.saldo<0) recomendacoes.push({prioridade:'Alta',texto:'O resultado do mês está negativo. Revise despesas pendentes antes de assumir novos compromissos.'});
-  if(estourada) recomendacoes.push({prioridade:'Média',texto:`A categoria ${estourada.nome} ultrapassou o orçamento. Revise os lançamentos ou ajuste o planejamento.`});
-  if(!recomendacoes.length) recomendacoes.push({prioridade:'Baixa',texto:'Mantenha os lançamentos atualizados e preserve uma margem para os próximos vencimentos.'});
-  return recomendacoes;
-}
-
 function emptyState(title, sub){
   return `<div class="empty-state"><strong>${title}</strong>${sub}</div>`;
 }

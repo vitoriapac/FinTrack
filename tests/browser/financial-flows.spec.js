@@ -10,7 +10,7 @@ test.beforeEach(async({page})=>{
   await page.evaluate(()=>localStorage.clear());
   await page.reload();
   if(await page.locator('#nav-mobile-toggle').isVisible())await page.locator('#nav-mobile-toggle').click();
-  await expect(page.getByRole('heading',{name:'O que fazer hoje'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Próximas ações'})).toBeVisible();
 });
 
 async function openEntries(page){

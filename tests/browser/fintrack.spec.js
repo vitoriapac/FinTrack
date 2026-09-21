@@ -20,7 +20,7 @@ test('menu lateral inicia recolhido e não cria barras de rolagem',async({page})
 });
 
 test('navega por atalhos e abre a busca global',async({page})=>{
-  await expect(page.getByRole('heading',{name:'O que fazer hoje'})).toBeVisible();
+  await expect(page.getByRole('heading',{name:'Próximas ações'})).toBeVisible();
   await page.keyboard.press('Alt+Digit7');
   await expect(page.getByRole('heading',{name:'Metas financeiras'})).toBeVisible();
   await page.keyboard.press('Control+K');
