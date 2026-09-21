@@ -76,6 +76,8 @@ function attachViewHandlers(){
 
   FinTrackFilters.bind(main);
   const agendaFilter=document.getElementById('agenda-tipo');if(agendaFilter)agendaFilter.onchange=()=>{agendaTipo=agendaFilter.value;agendaDiaSelecionado=null;render();};
+  const agendaView=document.getElementById('agenda-visualizacao');if(agendaView)agendaView.onchange=()=>{agendaVisualizacao=agendaView.value;agendaDiaSelecionado=null;render();};
+  const agendaCategory=document.getElementById('agenda-categoria');if(agendaCategory)agendaCategory.onchange=()=>{agendaCategoria=agendaCategory.value;agendaDiaSelecionado=null;render();};
   const agendaMonth=document.getElementById('agenda-mes');if(agendaMonth)agendaMonth.onchange=()=>{agendaMes=agendaMonth.value;agendaDiaSelecionado=null;render();};
   const shiftAgenda=amount=>{agendaMes=addMonths(`${agendaMes}-01`,amount).slice(0,7);agendaDiaSelecionado=null;render();};
   const agendaPrev=document.getElementById('agenda-prev');if(agendaPrev)agendaPrev.onclick=()=>shiftAgenda(-1);

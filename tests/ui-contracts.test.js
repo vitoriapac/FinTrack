@@ -6,6 +6,7 @@ const requiredScripts = [
   'js/financial-core.js',
   'js/services/health.js',
   'js/services/decision.js',
+  'js/services/calendar-analysis.js',
   'js/services/analysis/core.js',
   'js/services/analysis/index.js',
   'js/ui/screen-events.js',
@@ -66,6 +67,11 @@ assert.ok(css.includes('.app-footer{margin-top:auto'));
 assert.ok(html.includes('js/ui/form-validation.js'));
 assert.ok(fs.readFileSync('js/views/analises.js','utf8').includes('Central de decisão'));
 assert.ok(fs.readFileSync('js/views/analises.js','utf8').includes('Próximas três ações'));
+const agenda=fs.readFileSync('js/views/agenda.js','utf8');
+assert.ok(agenda.includes('Inteligência diária'));
+assert.ok(agenda.includes('Ritmo do orçamento'));
+assert.ok(agenda.includes('Pressão futura'));
+assert.ok(agenda.includes('Confirmado = lançamento pago'));
 assert.doesNotMatch(app,/function calcularSaudeFinanceira/);
 assert.ok(fs.readFileSync('js/views/planejamento.js','utf8').includes('Orçamento operacional'));
 assert.ok(fs.readFileSync('js/views/planejamento.js','utf8').includes('Acompanhamento'));

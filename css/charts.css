@@ -7,4 +7,6 @@
 @media(max-width:390px){.chart{padding:14px}.chart-donut-wrap{grid-template-columns:1fr}.chart-donut-wrap svg{max-height:150px}.chart-h-row{grid-template-columns:80px 1fr}.chart-h-row strong{grid-column:2}}
 @media(prefers-reduced-motion:reduce){.chart *{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 .chart-reference line{stroke:var(--gold);stroke-width:1;stroke-dasharray:2 2}.chart-reference text{fill:var(--text-secondary);font-weight:600}.chart-highlighted{fill:var(--expense)!important;stroke:var(--card);stroke-width:2}.chart-daily{grid-column:1/-1}.chart-daily svg{max-height:340px}@media(max-width:900px){.chart-daily svg{max-height:260px}}@media(max-width:480px){.chart-daily svg{max-height:240px}}
+.chart-multi-line .chart-line-path.chart-color-0{fill:none;stroke:var(--forest)}.chart-multi-line .chart-line-path.chart-color-1{fill:none;stroke:var(--gold)}.chart-multi-line .chart-fill-0{fill:var(--forest)}.chart-multi-line .chart-fill-1{fill:var(--gold)}.chart-multi-line .chart-key.chart-color-1{background:var(--gold)}
+.chart-multi-line{grid-column:1/-1}.chart-multi-line svg{max-height:300px}
 @media print{.sidebar,.app-footer,.page-actions,.quick-actions{display:none!important}main{max-width:none;padding:0}.chart,.section{break-inside:avoid;box-shadow:none}}

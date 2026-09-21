@@ -35,3 +35,18 @@ test('baixa da agenda reutiliza o serviço transacional',async({page})=>{
   await page.getByRole('button',{name:'Marcar como pago'}).click();
   expect(await page.evaluate(()=>FinTrackState.getState().lancamentos.find(item=>item.id==='agenda-pay').status)).toBe('Pago');
 });
+
+test('inteligência diária alterna dimensões e explica o dia',async({page})=>{
+  const month=await page.locator('#agenda-mes').inputValue();
+  await page.evaluate(month=>{const data=FinTrackState.getState();data.lancamentos=[{id:'daily-paid',descricao:'Mercado confirmado',tipo:'Despesa',valor:15000,data:`${month}-08`,status:'Pago',contaId:data.contas[0].id,categoriaId:'cat-mercado'}];data.planejamentos={[month]:{orcamentos:{'cat-mercado':30000}}};FinTrackState.replaceState(data);render();},month);
+  await expect(page.getByText('Ritmo do orçamento',{exact:true}).first()).toBeVisible();
+  await page.getByLabel('Visualização').selectOption('gastos');
+  await page.getByLabel('Categoria').selectOption('cat-mercado');
+  await page.locator(`[data-agenda-day="${month}-08"]`).click();
+  await expect(page.getByRole('dialog')).toContainText('Gasto confirmado');
+  await expect(page.getByRole('dialog')).toContainText('Mercado');
+  await expect(page.getByRole('dialog')).toContainText('R$ 150,00');
+  await page.getByRole('button',{name:'Fechar detalhes do dia'}).click();
+  await page.getByLabel('Visualização').selectOption('pressao');
+  await expect(page.locator(`[data-agenda-day="${month}-08"]`)).toHaveClass(/heat-level-/);
+});
