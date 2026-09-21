@@ -1,0 +1,16 @@
+(function(){
+  'use strict';
+  const label=month=>{const [year,index]=month.split('-').map(Number);return new Intl.DateTimeFormat('pt-BR',{month:'short',year:'numeric'}).format(new Date(year,index-1,1));};
+  function capture(data,month,closing,asOfDate){
+    const snapshot=closing?.snapshot;if(!snapshot)throw new Error('Fechamento sem snapshot.');
+    const year=Number(month.slice(0,4)),monthNumber=Number(month.slice(5,7)),lastDay=new Date(year,monthNumber,0).getDate(),monthEnd=`${month}-${lastDay}`,today=asOfDate||monthEnd,health=window.HealthService.evaluate(data,{today:today<monthEnd?today:monthEnd,year,month:monthNumber}),income=Number(snapshot.receitas||0),expense=Number(snapshot.despesas||0),result=Number(snapshot.resultado||0),overBudget=(snapshot.orcamentoDetalhado||[]).filter(item=>item.status==='ultrapassado'),entries=snapshot.lancamentosDetalhados||[],operational=entries.filter(item=>['Receita','Despesa'].includes(item.tipo)&&!['transferencia','investimento','pagamento_cartao','pagamento_divida'].includes(item.tipoOperacao)),linked=operational.filter(item=>item.contaId&&item.categoriaId).length,quality=operational.length?Math.round(linked/operational.length*100):null,insights=[];
+    if(result<0)insights.push({kind:'resultado',status:'critico',title:'Resultado negativo',detail:'As despesas realizadas superaram as receitas realizadas.',value:result});
+    if(overBudget.length)insights.push({kind:'orcamento',status:'atencao',title:'Orçamento ultrapassado',detail:`${overBudget.length} categoria(s) acima do limite.`,value:overBudget.reduce((sum,item)=>sum+Math.max(0,Number(item.comprometido||0)-Number(item.orcado||0)),0)});
+    if(income>0&&expense/income>.7)insights.push({kind:'comprometimento',status:'atencao',title:'Despesas acima de 70% da receita',detail:`${Math.round(expense/income*100)}% da receita realizada foi consumida.`,value:Math.round(expense/income*100)});
+    if(quality!==null&&quality<80)insights.push({kind:'qualidade',status:'atencao',title:'Vínculos incompletos',detail:`${operational.length-linked} de ${operational.length} lançamentos sem conta ou categoria.`,value:quality});
+    return {version:1,month,capturedAt:closing.fechadoEm,health:{score:health.score,classification:health.classification,status:health.status,components:health.components.map(item=>({name:item.name,points:item.points,max:item.max,detail:item.detail}))},metrics:{income,expense,result,quality},insights,method:'Leitura congelada no fechamento, baseada no snapshot e nos dados disponíveis naquele momento.'};
+  }
+  function timeline(data){return Object.entries(data.fechamentos||{}).filter(([,closing])=>closing?.status==='fechado'&&closing.memoriaFinanceira?.version===1&&closing.snapshot).map(([month,closing])=>({...closing.memoriaFinanceira,month,label:label(month)})).sort((a,b)=>a.month.localeCompare(b.month));}
+  function compare(data){const points=timeline(data);if(points.length<2)return null;const current=points.at(-1),previous=points.at(-2);return {current,previous,healthDelta:current.health.score-previous.health.score,expenseDelta:current.metrics.expense-previous.metrics.expense,insightDelta:current.insights.length-previous.insights.length};}
+  window.FinancialMemoryService={capture,timeline,compare};
+})();

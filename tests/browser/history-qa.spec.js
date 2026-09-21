@@ -42,6 +42,20 @@ test('demonstração de seis meses preserva integridade e quatro fechamentos',as
   expect(result.report.warnings).toEqual([]);
 });
 
+test('fechamento registra memória e análises mostram evolução sem recalcular legado',async({page})=>{
+  await page.evaluate(()=>{const data=FinTrackState.getState();data.lancamentos=[{id:'memory-expense',descricao:'Despesa de memória',tipo:'Despesa',tipoOperacao:'despesa',status:'Pago',data:'2026-08-10',valor:12000,contaId:data.contas[0].id,categoriaId:'cat-mercado'}];FinTrackState.replaceState(data);planejamentoMes='2026-08';setView('planejamento');});
+  page.once('dialog',dialog=>dialog.accept('Primeiro mês com memória'));
+  await page.locator('#btn-fechar-mes').click();
+  await expect.poll(()=>page.evaluate(()=>FinTrackState.getState().fechamentos['2026-08']?.memoriaFinanceira?.version)).toBe(1);
+  const frozen=await page.evaluate(()=>JSON.stringify(FinTrackState.getState().fechamentos['2026-08'].memoriaFinanceira));
+  await page.evaluate(()=>{const data=FinTrackState.getState();data.lancamentos=[];FinTrackState.replaceState(data);setView('historico');});
+  await expect(page.getByRole('heading',{name:'Memória financeira do fechamento'})).toBeVisible();
+  expect(await page.evaluate(()=>JSON.stringify(FinTrackState.getState().fechamentos['2026-08'].memoriaFinanceira))).toBe(frozen);
+  await page.evaluate(()=>setView('analises'));
+  await expect(page.getByText('Evolução da saúde financeira')).toBeVisible();
+  await expect(page.getByText('Fechamentos anteriores à versão 3.8')).toHaveCount(0);
+});
+
 test('QA responsivo mantém a aplicação dentro de cinco viewports',async({page},testInfo)=>{
   test.skip(testInfo.project.name!=='desktop-chromium','Matriz executada uma vez no Chromium desktop');
   const sizes=[[1440,900],[1024,768],[768,900],[390,844],[360,800]];
