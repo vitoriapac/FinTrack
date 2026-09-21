@@ -77,6 +77,7 @@ function attachViewHandlers(){
   FinTrackFilters.bind(main);
   const agendaFilter=document.getElementById('agenda-tipo');if(agendaFilter)agendaFilter.onchange=()=>{agendaTipo=agendaFilter.value;agendaDiaSelecionado=null;render();};
   const agendaView=document.getElementById('agenda-visualizacao');if(agendaView)agendaView.onchange=()=>{agendaVisualizacao=agendaView.value;agendaDiaSelecionado=null;render();};
+  main.querySelectorAll('[data-agenda-layer]').forEach(button=>button.onclick=()=>{agendaVisualizacao=button.dataset.agendaLayer;agendaDiaSelecionado=null;render();main.querySelector(`[data-agenda-layer="${agendaVisualizacao}"]`)?.focus();});
   const agendaCategory=document.getElementById('agenda-categoria');if(agendaCategory)agendaCategory.onchange=()=>{agendaCategoria=agendaCategory.value;agendaDiaSelecionado=null;render();};
   const agendaMonth=document.getElementById('agenda-mes');if(agendaMonth)agendaMonth.onchange=()=>{agendaMes=agendaMonth.value;agendaDiaSelecionado=null;render();};
   const shiftAgenda=amount=>{agendaMes=addMonths(`${agendaMes}-01`,amount).slice(0,7);agendaDiaSelecionado=null;render();};
@@ -89,7 +90,7 @@ function attachViewHandlers(){
   main.querySelectorAll('[data-agenda-day]').forEach(button=>button.onclick=()=>{agendaDiaSelecionado=button.dataset.agendaDay;render();document.getElementById('agenda-close-day')?.focus();});
   main.querySelectorAll('[data-agenda-open]').forEach(button=>button.onclick=()=>{const item=AgendaService.project(state,{start:`${agendaMes}-01`,end:addMonths(`${agendaMes}-01`,1).slice(0,7)+'-01'}).find(entry=>entry.id===button.dataset.agendaOpen);if(item){agendaDiaSelecionado=item.vencimento;render();document.getElementById('agenda-close-day')?.focus();}});
   const closeAgendaDay=document.getElementById('agenda-close-day');window.closeAgendaPanel=()=>{if(!agendaDiaSelecionado)return;agendaDiaSelecionado=null;render();};if(closeAgendaDay)closeAgendaDay.onclick=window.closeAgendaPanel;
-  main.querySelectorAll('[data-agenda-link]').forEach(button=>button.onclick=()=>setView(button.dataset.agendaLink.split(':')[0]||'lancamentos'));
+  main.querySelectorAll('[data-agenda-link]').forEach(button=>button.onclick=()=>navigateToInsight(FinTrackInsightRoutes.forEvent(button.dataset.agendaLink)));
   main.querySelectorAll('[data-agenda-pay]').forEach(button=>button.onclick=async()=>{const lanc=state.lancamentos.find(item=>item.id===button.dataset.agendaPay);if(!lanc||impedirAlteracaoMes(lanc.data))return;const result=FinTrackServices.entries.toggleStatus(state,lanc.id);FinTrackState.replaceState(result.state);registrarHistorico('alteracao_status',`Status alterado para ${result.status}: ${lanc.descricao}`,{lancamentoIds:result.items.map(item=>item.id),operacaoId:lanc.operacaoId||null});await saveData();agendaDiaSelecionado=null;render();});
   const saveProfile=document.getElementById('btn-save-profile');if(saveProfile)saveProfile.onclick=async()=>{await saveProfileName(document.getElementById('profile-name').value);render();};
   main.querySelectorAll('[data-insight-target]').forEach(button=>button.onclick=()=>navigateToInsight({view:button.dataset.insightTarget,month:button.dataset.insightMonth,categoryId:button.dataset.insightCategory,date:button.dataset.insightDate,entityId:button.dataset.insightEntity}));

@@ -223,12 +223,21 @@ function setView(view){
 }
 
 function navigateToInsight(destination){
-  const target=typeof destination==='string'?{view:destination}:destination||{},view=String(target.view||'home'),month=/^\d{4}-\d{2}$/.test(target.month||'')?target.month:null,date=/^\d{4}-\d{2}-\d{2}$/.test(target.date||'')?target.date:null;
+  const target=typeof destination==='string'?{view:destination}:destination||{},view=String(target.view||'home'),month=/^\d{4}-\d{2}$/.test(target.month||'')?target.month:null,date=/^\d{4}-\d{2}-\d{2}$/.test(target.date||'')?target.date:null,origin=currentView,entityId=String(target.entityId||'');
   if(view==='agenda'){agendaMes=date?.slice(0,7)||month||agendaMes;agendaDiaSelecionado=date?.startsWith(agendaMes)?date:null;}
   if(view==='planejamento'&&month)planejamentoMes=month;
+  if(view==='lancamentos'&&entityId){const entry=state.lancamentos.find(item=>item.id===entityId);if(entry){lancFiltro.mes=Number(entry.data.slice(5,7));lancFiltro.ano=Number(entry.data.slice(0,4));lancFiltro.categoriaId='todas';lancFiltro.busca='';lancMostrarTodos=true;}}
   setView(view);
-  const main=document.getElementById('main'),goalName=view==='metas'&&target.entityId?state.metas.find(item=>item.id===target.entityId)?.nome:null,focusTarget=view==='agenda'&&date?document.getElementById('agenda-close-day'):view==='planejamento'&&target.categoryId?[...main.querySelectorAll('[data-planning-category]')].find(item=>item.dataset.planningCategory===target.categoryId):view==='projecao'&&month?[...main.querySelectorAll('[data-projection-month]')].find(item=>item.dataset.projectionMonth===month):goalName?[...main.querySelectorAll('.data-panel')].find(item=>item.querySelector('h2')?.textContent===goalName):null;
-  if(focusTarget){focusTarget.setAttribute('tabindex','-1');focusTarget.focus();focusTarget.scrollIntoView({block:'center'});}else main.focus();
+  const main=document.getElementById('main'),goalIndex=view==='metas'&&entityId?state.metas.findIndex(item=>item.id===entityId):-1;
+  const rowAction={lancamentos:'edit-lanc',dividas:'pay-divida',cartoes:'pay-card'}[view],entityRow=rowAction&&entityId?[...main.querySelectorAll(`[data-action="${rowAction}"]`)].find(button=>button.dataset.id===entityId&&button.getClientRects().length)?.closest('tr,article'):null;
+  let focusTarget=null;
+  if(view==='agenda'&&date)focusTarget=document.getElementById('agenda-close-day');
+  else if(view==='planejamento'&&target.categoryId)focusTarget=[...main.querySelectorAll('[data-planning-category]')].find(item=>item.dataset.planningCategory===target.categoryId);
+  else if(view==='projecao'&&month)focusTarget=[...main.querySelectorAll('[data-projection-month]')].find(item=>item.dataset.projectionMonth===month);
+  else if(goalIndex>=0)focusTarget=main.querySelectorAll('.panel-layout .data-panel')[goalIndex];
+  const destinationNode=entityRow||focusTarget,missing=Boolean((entityId&&['lancamentos','dividas','cartoes','metas'].includes(view)||target.categoryId&&view==='planejamento')&&!destinationNode);
+  if(origin!==view||missing){const notice=document.createElement('div');notice.className='insight-return';notice.setAttribute('role','status');notice.append(document.createTextNode(missing?'O item não está mais disponível. Você está na seção relacionada.':'Você está vendo os detalhes relacionados.'));const back=document.createElement('button');back.type='button';back.className='btn btn-ghost btn-sm';back.textContent='Voltar à análise';back.addEventListener('click',()=>{setView(origin);const heading=document.querySelector('#main h1');if(heading){heading.setAttribute('tabindex','-1');heading.focus();}});notice.append(back);main.prepend(notice);}
+  const focus=destinationNode||main.querySelector('h1')||main;focus.setAttribute('tabindex','-1');focus.focus();if(destinationNode)destinationNode.scrollIntoView({block:'center'});
 }
 
 FinTrackNavigation.mount();

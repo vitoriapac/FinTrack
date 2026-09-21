@@ -33,3 +33,14 @@ test('tooltip do ritmo mostra diferença e painel diário separa certeza dos val
   const day=page.locator('[data-agenda-day]').first();await day.click();
   await expect(page.locator('.agenda-day-reading')).toContainText('apenas gastos pagos são confirmados');
 });
+
+test('quatro leituras da Agenda alternam por clique e teclado',async({page})=>{
+  await page.goto('/');await page.evaluate(()=>{FinTrackState.replaceState(criarDadosDemo());setView('agenda');});
+  for(const mode of ['gastos','saldo','orcamento','pressao']){
+    const button=page.locator(`[data-agenda-layer="${mode}"]`);await button.click();
+    await expect(button).toHaveAttribute('aria-pressed','true');
+    await expect(page.locator('.agenda-calendar')).toHaveClass(new RegExp(`mode-${mode}`));
+  }
+  await page.locator('[data-agenda-layer="saldo"]').focus();await page.keyboard.press('Space');
+  await expect(page.locator('[data-agenda-layer="saldo"]')).toHaveAttribute('aria-pressed','true');
+});

@@ -6,4 +6,9 @@ const overdue=routes.forInsight({tipo:'atrasos',evidencia:{lancamentoIds:['late'
 const budget=routes.forInsight({tipo:'orcamento',evidencia:{periodo:'2026-09',categoriaId:'food'}},{});assert.equal(budget.month,'2026-09');assert.equal(budget.categoryId,'food');
 assert.equal(routes.forInsight({tipo:'metas',evidencia:{metaId:'goal-1'}},{}).entityId,'goal-1');
 assert.equal(routes.forInsight({tipo:'projecao',evidencia:{periodo:'invalid'}},{}).month,null);
+assert.equal(routes.forInsight({tipo:'dividas'},{dividas:[{id:'debt-1',saldo:100}]}).entityId,'debt-1');
+assert.equal(routes.forInsight({tipo:'dividas'},{dividas:[{id:'debt-1',saldo:100},{id:'debt-2',saldo:200}]}).entityId,null);
+const concentrated=routes.forInsight({tipo:'concentracao',evidencia:{categorias:[{id:'food'}],periodo:'2026-09'}},{});assert.equal(concentrated.view,'planejamento');assert.equal(concentrated.categoryId,'food');
+assert.equal(routes.forEvent('lancamentos:entry-1').entityId,'entry-1');
+assert.equal(routes.forEvent('planejamento:annual-1').entityId,null);
 console.log('insight route tests: OK');
