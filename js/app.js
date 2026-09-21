@@ -227,7 +227,7 @@ function navigateToInsight(destination){
   if(view==='agenda'){agendaMes=date?.slice(0,7)||month||agendaMes;agendaDiaSelecionado=date?.startsWith(agendaMes)?date:null;}
   if(view==='planejamento'&&month)planejamentoMes=month;
   setView(view);
-  const main=document.getElementById('main'),focusTarget=view==='agenda'&&date?document.getElementById('agenda-close-day'):view==='planejamento'&&target.categoryId?[...main.querySelectorAll('[data-planning-category]')].find(item=>item.dataset.planningCategory===target.categoryId):view==='projecao'&&month?[...main.querySelectorAll('[data-projection-month]')].find(item=>item.dataset.projectionMonth===month):null;
+  const main=document.getElementById('main'),goalName=view==='metas'&&target.entityId?state.metas.find(item=>item.id===target.entityId)?.nome:null,focusTarget=view==='agenda'&&date?document.getElementById('agenda-close-day'):view==='planejamento'&&target.categoryId?[...main.querySelectorAll('[data-planning-category]')].find(item=>item.dataset.planningCategory===target.categoryId):view==='projecao'&&month?[...main.querySelectorAll('[data-projection-month]')].find(item=>item.dataset.projectionMonth===month):goalName?[...main.querySelectorAll('.data-panel')].find(item=>item.querySelector('h2')?.textContent===goalName):null;
   if(focusTarget){focusTarget.setAttribute('tabindex','-1');focusTarget.focus();focusTarget.scrollIntoView({block:'center'});}else main.focus();
 }
 

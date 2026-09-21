@@ -4,6 +4,7 @@ const port=Number(process.env.FINTRACK_TEST_PORT||43117);
 module.exports=defineConfig({
   testDir:'./tests/browser',
   fullyParallel:true,
+  workers:4,
   reporter:process.env.CI?'github':'list',
   use:{baseURL:`http://127.0.0.1:${port}`,trace:'retain-on-failure'},
   projects:[

@@ -27,6 +27,7 @@ FinTrack é um aplicativo web de controle financeiro pessoal construído em HTML
 - Busca global, atalhos de teclado e cards de lançamentos no celular
 - Visão inicial 4.0 com resumo financeiro, até três alertas e três ações, dois gráficos essenciais e ritmo diário do orçamento
 - Navegação contextual dos alertas para Agenda, Planejamento e Projeção, além de barra de acesso rápido no celular
+- Exploração 4.1: destinos de insights padronizados, leitura diária de pressão na Agenda, tooltips de orçamento com diferença e matriz de QA ampliada
 
 ## Estrutura
 
