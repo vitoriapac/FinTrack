@@ -8,6 +8,7 @@ const requiredScripts = [
   'js/services/decision.js',
   'js/services/calendar-analysis.js',
   'js/services/financial-memory.js',
+  'js/services/scenarios.js',
   'js/services/analysis/core.js',
   'js/services/analysis/index.js',
   'js/ui/screen-events.js',

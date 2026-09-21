@@ -1,0 +1,12 @@
+(function(){
+  'use strict';
+  function compare(data,startMonth,input={}){
+    const kind=input.kind||'reduce-expense',amount=Math.round(Number(input.amount||0)),installments=Math.max(1,Math.min(24,Math.trunc(Number(input.installments)||1))),months=Math.max(3,Math.min(24,Number(input.months)||3));
+    if(!['reduce-expense','reserve','debt','installment'].includes(kind))throw new Error('Tipo de cenário inválido.');
+    if(!Number.isSafeInteger(amount)||amount<=0)throw new Error('Informe um valor maior que zero.');
+    if(kind==='debt'&&!(data.dividas||[]).some(item=>item.id===input.debtId&&Number(item.saldo||0)>0))throw new Error('Selecione uma dívida ativa.');
+    const count=kind==='installment'?Math.max(months,installments):months,baseline=window.ProjectionService.project(data,startMonth,count),scenario=kind==='reduce-expense'?{gastoMensal:-amount}:kind==='reserve'?{investimentoMensal:amount}:kind==='debt'?{gastoMensal:amount}:{ajustes:Object.fromEntries(Array.from({length:installments},(_,index)=>{const [year,month]=startMonth.split('-').map(Number),date=new Date(year,month-1+index,1),part=Math.floor(amount/installments)+(index<amount%installments?1:0);return [`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}`,-part];}))},simulated=window.ProjectionService.project(data,startMonth,count,scenario),rows=baseline.meses.map((base,index)=>{const changed=simulated.meses[index];return {month:base.mes,baseline:base.saldoFinal,simulated:changed.saldoFinal,difference:changed.saldoFinal-base.saldoFinal,baselineMinimum:base.menorSaldo,simulatedMinimum:changed.menorSaldo};}),debt=kind==='debt'?window.SimulatorService.payoff(data,input.debtId,amount):null;
+    return {kind,amount,installments,rows,baselineMinimum:Math.min(...baseline.meses.map(item=>item.menorSaldo)),simulatedMinimum:Math.min(...simulated.meses.map(item=>item.menorSaldo)),debt,notice:kind==='debt'?'O aporte extra afeta o caixa projetado; a quitação simplificada não reduz automaticamente as parcelas futuras no cenário.':kind==='reserve'?'Aporte em reserva reduz o saldo disponível e aumenta patrimônio; não representa despesa.':kind==='installment'?'Parcelas distribuídas igualmente a partir deste mês; datas reais e juros não são simulados.':'Redução mensal hipotética de gastos; o orçamento cadastrado não é alterado.',disclaimer:'Cenário temporário e determinístico. Nenhum lançamento, orçamento ou dívida foi alterado.'};
+  }
+  window.ScenarioService={compare};
+})();
