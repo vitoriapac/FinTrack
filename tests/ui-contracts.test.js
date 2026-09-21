@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const html = fs.readFileSync('index.html', 'utf8');
 const requiredScripts = [
   'js/financial-core.js',
+  'js/services/analysis/core.js',
+  'js/services/analysis/index.js',
   'js/ui/screen-events.js',
   'js/forms/entry.js',
   'js/views/cadastro.js',
@@ -16,6 +18,10 @@ const requiredScripts = [
 ];
 for (const script of requiredScripts) assert.ok(html.includes(`src="${script}"`), `script ausente: ${script}`);
 assert.ok(html.indexOf('js/financial-core.js') < html.indexOf('js/ui/screen-events.js'));
+const analysisModules=['core','recurring','commitment','reserve','quality','anomaly','concentration','index'].map(name=>`js/services/analysis/${name}.js`);
+for(const module of analysisModules)assert.ok(html.includes(`src="${module}"`),`módulo de análise ausente: ${module}`);
+for(let index=1;index<analysisModules.length;index++)assert.ok(html.indexOf(analysisModules[index-1])<html.indexOf(analysisModules[index]),`ordem inválida dos módulos: ${analysisModules[index]}`);
+assert.ok(html.indexOf('js/services/analysis/index.js')<html.indexOf('js/services/insights.js'));
 assert.ok(fs.readFileSync('js/ui/screen-handlers.js', 'utf8').includes('FinTrackScreenEvents.attach(main)'));
 const app=fs.readFileSync('js/app.js','utf8');
 assert.ok(app.includes('FinTrackCore.cardInvoice(state,c,new Date())'));
@@ -43,6 +49,8 @@ assert.ok(home.includes('Leitura financeira'));
 assert.ok(!home.includes('JSON.stringify(item.evidencia)'));
 assert.ok(home.includes('DataPanel.render'));
 assert.ok(home.includes('InsightCard.render'));
+assert.ok(home.includes('provenance:lead.provenance'));
+assert.ok(fs.readFileSync('js/ui/components.js','utf8').includes('Como chegamos a esta conclusão?'));
 assert.ok(app.includes('Fatura atual'));
 assert.ok(app.includes('renderAppFooter()'));
 assert.ok(app.includes('Backup e recuperação'));
