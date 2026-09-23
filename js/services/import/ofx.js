@@ -20,13 +20,15 @@
       const currency=field(body,'CURDEF').toUpperCase();
       const account=field(bank,'ACCTID'),bankId=field(bank,'BANKID');
       const list=blocks(body,'BANKTRANLIST')[0]||'';
+      const postedDate=value=>/^\d{8}/.test(value)?`${value.slice(0,4)}-${value.slice(4,6)}-${value.slice(6,8)}`:value;
+      const period=window.FinTrackBankImport.statementPeriod(postedDate(field(list,'DTSTART')),postedDate(field(list,'DTEND')),'reported');
       const transactionBlocks=blocks(list,'STMTTRN');
       const records=transactionBlocks.map((transaction,rowIndex)=>{
         const name=field(transaction,'NAME'),memo=field(transaction,'MEMO'),description=name||memo;
         const posted=field(transaction,'DTPOSTED');
-        return {rowNumber:rowIndex+1,date:/^\d{8}/.test(posted)?`${posted.slice(0,4)}-${posted.slice(4,6)}-${posted.slice(6,8)}`:posted,description,originalDescription:[name,memo].filter(Boolean).join(' — ')||description,amount:field(transaction,'TRNAMT'),sourceId:field(transaction,'FITID'),documentNumber:field(transaction,'CHECKNUM')||field(transaction,'REFNUM'),currency};
+        return {rowNumber:rowIndex+1,date:postedDate(posted),description,originalDescription:[name,memo].filter(Boolean).join(' — ')||description,amount:field(transaction,'TRNAMT'),sourceId:field(transaction,'FITID'),documentNumber:field(transaction,'CHECKNUM')||field(transaction,'REFNUM'),currency};
       });
-      return {index,currency,accountSuffix:account.slice(-4),bankId,records};
+      return {index,currency,accountSuffix:account.slice(-4),bankId,externalAccountId:account,period,records};
     });
     return {statements,errors:statements.some(statement=>statement.records.length)?[]:['Nenhuma transação bancária STMTTRN encontrada.']};
   }
@@ -34,7 +36,7 @@
   function preview(statement,accountId){
     if(!statement||!statement.records?.length)return {rows:[],items:[],errors:[{rowNumber:null,messages:['Extrato sem transações.']}],totalRows:0};
     if(!statement.currency)return {rows:[],items:[],errors:[{rowNumber:null,messages:['O OFX não informa a moeda (CURDEF).']}],totalRows:statement.records.length};
-    return window.FinTrackBankImport.previewTransactions(statement.records,{format:'ofx',accountId,currency:statement.currency});
+    return window.FinTrackBankImport.previewTransactions(statement.records,{format:'ofx',accountId,currency:statement.currency,bankId:statement.bankId,externalAccountId:statement.externalAccountId});
   }
   window.FinTrackBankOfx={parse,preview};
 })();

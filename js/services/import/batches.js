@@ -6,26 +6,28 @@
   const key=(accountId,date,amountCents)=>[accountId,date,amountCents].join('|');
 
   function candidateIndex(state){
-    const byKey=new Map(),bySource=new Map();
+    const byKey=new Map(),bySource=new Map(),byLegacySource=new Map();
     (state.lancamentos||[]).forEach(entry=>{
       const signed=entry.tipo==='Despesa'?-entry.valor:entry.valor;
       const identity=key(entry.contaId,entry.data,signed);
       if(!byKey.has(identity))byKey.set(identity,[]);
       byKey.get(identity).push(entry);
       if(entry.importSource?.sourceId){
-        const sourceKey=`${entry.contaId}|${entry.importSource.sourceId}`;
-        if(!bySource.has(sourceKey))bySource.set(sourceKey,[]);
-        bySource.get(sourceKey).push(entry);
+        const sourceKey=`${entry.contaId}|${entry.importSource.identityKey||entry.importSource.sourceId}`;
+        const target=entry.importSource.identityKey?bySource:byLegacySource;
+        if(!target.has(sourceKey))target.set(sourceKey,[]);
+        target.get(sourceKey).push(entry);
       }
     });
-    return {byKey,bySource};
+    return {byKey,bySource,byLegacySource};
   }
 
   function candidates(state,transaction,index=candidateIndex(state)){
     const identity=key(transaction.source.accountId,transaction.date,transaction.amountCents);
-    const sourceKey=`${transaction.source.accountId}|${transaction.sourceId}`;
-    const matches=[...(index.byKey.get(identity)||[]),...(transaction.sourceId?index.bySource.get(sourceKey)||[]:[])];
-    return [...new Map(matches.map(entry=>[entry.id,entry])).values()].map(entry=>({id:entry.id,description:entry.descricao,categoryId:entry.categoriaId,compatible:entry.data===transaction.date&&(entry.tipo==='Despesa'?-entry.valor:entry.valor)===transaction.amountCents,exactSource:Boolean(transaction.sourceId&&entry.importSource?.sourceId===transaction.sourceId),exactDescription:String(entry.descricao||'').trim().toLowerCase()===transaction.description.toLowerCase()}));
+    const sourceKey=`${transaction.source.accountId}|${transaction.source.identityKey||transaction.sourceId}`;
+    const legacyKey=`${transaction.source.accountId}|${transaction.sourceId}`;
+    const matches=[...(index.byKey.get(identity)||[]),...(transaction.sourceId?index.bySource.get(sourceKey)||[]:[]),...(transaction.sourceId?index.byLegacySource.get(legacyKey)||[]:[])];
+    return [...new Map(matches.map(entry=>[entry.id,entry])).values()].map(entry=>{const compatible=entry.data===transaction.date&&(entry.tipo==='Despesa'?-entry.valor:entry.valor)===transaction.amountCents;const sameScope=Boolean(transaction.source.identityKey&&entry.importSource?.identityKey===transaction.source.identityKey);return {id:entry.id,description:entry.descricao,categoryId:entry.categoriaId,compatible,exactSource:Boolean(transaction.sourceId&&entry.importSource?.sourceId===transaction.sourceId&&(sameScope||!entry.importSource?.identityKey&&compatible)),exactDescription:String(entry.descricao||'').trim().toLowerCase()===transaction.description.toLowerCase()};});
   }
 
   function commit(state,decisions,metadata,idFactory){
@@ -68,7 +70,7 @@
         const imported=transfer.items.find(entry=>entry.id===newId);
         const stored=next.lancamentos.find(entry=>entry.id===newId);
         stored.importBatchId=batchId;
-        stored.importSource={format:transaction.source.format,rowNumber:transaction.source.rowNumber,sourceId:transaction.sourceId,originalDescription:transaction.originalDescription,documentNumber:transaction.documentNumber};
+        stored.importSource={format:transaction.source.format,rowNumber:transaction.source.rowNumber,sourceId:transaction.sourceId,identityKey:transaction.source.identityKey||null,originalDescription:transaction.originalDescription,documentNumber:transaction.documentNumber};
         created.push({entryId:newId,rowNumber:transaction.source.rowNumber,signature:signature(stored)});
         if(counterpart){
           const opposite=next.lancamentos.find(entry=>entry.id===counterpart.id);
@@ -85,19 +87,20 @@
       const category=categories.get(decision.categoryId),type=transaction.amountCents<0?'Despesa':'Receita';
       if(next.fechamentos?.[transaction.date.slice(0,7)]?.status==='fechado')throw new Error(`Linha ${transaction.source.rowNumber}: mês fechado.`);
       if(!category||category.tipo!==(type==='Despesa'?'Saída':'Entrada')||category.natureza==='movimentacao')throw new Error(`Linha ${transaction.source.rowNumber}: escolha uma categoria operacional válida.`);
-      const identity=transaction.sourceId?`${transaction.source.accountId}|${transaction.sourceId}`:null;
+      const identity=transaction.sourceId?`${transaction.source.accountId}|${transaction.source.identityKey||transaction.sourceId}`:null;
       if(identity&&reservedKeys.has(identity))throw new Error(`Linha ${transaction.source.rowNumber}: identificador repetido neste lote.`);
       if(identity)reservedKeys.add(identity);
       const id=idFactory('import-entry');
       if(existingIds.has(id))throw new Error('Identificador de lançamento repetido.');
       existingIds.add(id);
-      const entry={id,data:transaction.date,descricao:transaction.description,tipo:type,contaId:transaction.source.accountId,categoriaId:category.id,valor:Math.abs(transaction.amountCents),status:'Pago',fixa:false,tipoOperacao:type==='Despesa'?'despesa':'receita',importBatchId:batchId,importSource:{format:transaction.source.format,rowNumber:transaction.source.rowNumber,sourceId:transaction.sourceId,originalDescription:transaction.originalDescription,documentNumber:transaction.documentNumber}};
+      const entry={id,data:transaction.date,descricao:transaction.description,tipo:type,contaId:transaction.source.accountId,categoriaId:category.id,valor:Math.abs(transaction.amountCents),status:'Pago',fixa:false,tipoOperacao:type==='Despesa'?'despesa':'receita',importBatchId:batchId,importSource:{format:transaction.source.format,rowNumber:transaction.source.rowNumber,sourceId:transaction.sourceId,identityKey:transaction.source.identityKey||null,originalDescription:transaction.originalDescription,documentNumber:transaction.documentNumber}};
       next.lancamentos.push(entry);
       created.push({entryId:id,rowNumber:transaction.source.rowNumber,signature:signature(entry)});
       if(decision.rememberRule)next=window.FinTrackImportAssistant.addRule(next,{pattern:transaction.description,type,categoryId:category.id},idFactory);
     }
     if(!created.length&&!linked.length)throw new Error('Selecione ao menos uma linha para importar ou vincular.');
-    const batch={id:batchId,format:metadata.format==='ofx'?'ofx':'csv',fileName:String(metadata.fileName||''),accountId:String(metadata.accountId||''),createdAt:new Date().toISOString(),status:'active',created,modified,operations,linked,ignored,totalRows:decisions.length};
+    const period=metadata.period&&window.FinTrackBankImport.statementPeriod(metadata.period.from,metadata.period.to,metadata.period.kind);
+    const batch={id:batchId,format:metadata.format==='ofx'?'ofx':'csv',fileName:String(metadata.fileName||''),accountId:String(metadata.accountId||''),period,createdAt:new Date().toISOString(),status:'active',created,modified,operations,linked,ignored,totalRows:decisions.length};
     next.importBatches=[...(next.importBatches||[]),batch];
     return {state:next,batch};
   }

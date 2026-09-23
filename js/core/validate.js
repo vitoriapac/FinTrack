@@ -2,6 +2,7 @@
   'use strict';
   const datePattern=/^\d{4}-\d{2}-\d{2}$/;
   const clone=value=>window.FinTrackNormalize.clone(value);
+  const validPeriod=period=>period===null||period===undefined||Boolean(period&&window.FinTrackBankImport?.normalizeDate(period.from)===period.from&&window.FinTrackBankImport?.normalizeDate(period.to)===period.to&&period.from<=period.to&&['reported','confirmed'].includes(period.kind));
 
   function validateData(data){
     const errors=[],warnings=[];
@@ -45,6 +46,7 @@
     }
     for(const batch of data.importBatches||[]){
       if(!batch||!['csv','ofx'].includes(batch.format)||!['active','undone'].includes(batch.status)||!Array.isArray(batch.created)||!Array.isArray(batch.linked)||!Array.isArray(batch.ignored)||batch.modified&&!Array.isArray(batch.modified)||batch.operations&&!Array.isArray(batch.operations))errors.push(`lote de importação ${batch?.id||'sem id'} inválido`);
+      else if(!validPeriod(batch.period))errors.push(`lote de importação ${batch.id} com período inválido`);
     }
     for(const rule of data.importRules||[]){
       if(!rule||typeof rule.pattern!=='string'||rule.pattern.trim().length<3||!['Despesa','Receita'].includes(rule.type)||typeof rule.categoryId!=='string')errors.push(`regra de importação ${rule?.id||'sem id'} inválida`);
@@ -122,7 +124,8 @@
     const next=window.FinTrackNormalize.normalizeData(clone(data),data);
     const validIds=(items)=>new Set(items.map(item=>item.id));
     for(const key of window.FinTrackSchema.requiredCollections) next[key]=(next[key]||[]).filter(item=>item&&typeof item==='object'&&item.id);
-    const invalidBatch=next.importBatches.filter(batch=>!['csv','ofx'].includes(batch.format)||!['active','undone'].includes(batch.status)||!Array.isArray(batch.created)||!Array.isArray(batch.linked)||!Array.isArray(batch.ignored)||batch.modified&&!Array.isArray(batch.modified)||batch.operations&&!Array.isArray(batch.operations));
+      const invalidBatch=next.importBatches.filter(batch=>!['csv','ofx'].includes(batch.format)||!['active','undone'].includes(batch.status)||!Array.isArray(batch.created)||!Array.isArray(batch.linked)||!Array.isArray(batch.ignored)||batch.modified&&!Array.isArray(batch.modified)||batch.operations&&!Array.isArray(batch.operations));
+      next.importBatches.filter(batch=>!invalidBatch.includes(batch)&&!validPeriod(batch.period)).forEach(batch=>{batch.period=null;});
     const invalidRule=next.importRules.filter(rule=>typeof rule.pattern!=='string'||rule.pattern.trim().length<3||!['Despesa','Receita'].includes(rule.type)||typeof rule.categoryId!=='string');
     next.importBatches=next.importBatches.filter(batch=>!invalidBatch.includes(batch));next.importRules=next.importRules.filter(rule=>!invalidRule.includes(rule));
     next.quarentena.push(...invalidBatch.map(batch=>({id:`quarentena-import-batch-${batch.id}`,tipo:'lote_importacao_invalido',origemId:batch.id,motivo:'Metadados de lote inválidos',dados:batch})),...invalidRule.map(rule=>({id:`quarentena-import-rule-${rule.id}`,tipo:'regra_importacao_invalida',origemId:rule.id,motivo:'Metadados de regra inválidos',dados:rule})));

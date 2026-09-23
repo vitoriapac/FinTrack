@@ -35,6 +35,8 @@ FinTrack é um aplicativo web de controle financeiro pessoal construído em HTML
 - Núcleo de importação bancária (4.5): prévia local e pura de transações intermediárias, com origem por linha, normalização de datas e centavos, validação de BRL e erros estruturados; a leitura ainda não grava lançamentos
 - CSV bancário e revisão segura (4.7): mapeamento de colunas, débito/crédito, revisão por linha, correspondências sugeridas, vínculo manual, histórico de lotes e desfazer protegido
 - OFX e assistência local (4.9): extratos bancários OFX 1.x/2.x em BRL usam a mesma revisão; FITID identifica a origem. Regras explícitas sugerem categorias com motivo visível, e transferências confirmadas criam pares ou incorporam um movimento oposto existente, com desfazer protegido
+- Consolidação da importação (4.10): CSV e OFX compartilham o contrato intermediário; a identidade OFX considera instituição, conta externa e FITID sem gravar o número completo da conta. Lotes anteriores permanecem legíveis. O período coberto só é registrado quando informado no OFX ou confirmado no CSV.
+- Tela de importação (4.11): fluxo em Lançamentos com arquivo, confirmação explícita da conta, configuração com exemplos e análise das linhas antes de salvar. QIF permanece fora do escopo.
 
 ## Estrutura
 

@@ -1,8 +1,21 @@
 (function(){
   'use strict';
 
-  const formats=new Set(['csv','ofx','qif']);
+  const formats=new Set(['csv','ofx']);
   const clean=value=>String(value??'').trim();
+  // An opaque, deterministic local key: the external account number is never persisted.
+  function sourceScope(bankId,externalAccountId){
+    const bank=clean(bankId).toUpperCase(),account=clean(externalAccountId).toUpperCase();
+    if(!bank||!account)return null;
+    const value=`${bank.length}:${bank}|${account.length}:${account}`;
+    let first=2166136261,second=2246822519;
+    for(let i=0;i<value.length;i++){first=Math.imul(first^value.charCodeAt(i),16777619);second=Math.imul(second^value.charCodeAt(i),3266489917);}
+    return `v1-${(first>>>0).toString(16).padStart(8,'0')}${(second>>>0).toString(16).padStart(8,'0')}`;
+  }
+  function statementPeriod(start,end,kind){
+    const from=normalizeDate(start),to=normalizeDate(end);
+    return from&&to&&from<=to&&['reported','confirmed'].includes(kind)?{from,to,kind}:null;
+  }
 
   function normalizeDate(value){
     const raw=clean(value);
@@ -50,8 +63,10 @@
     if(amountCents===null) errors.push('Valor inválido ou zero.');
     if(errors.length) return {transaction:null,errors};
     const rowNumber=Number.isSafeInteger(raw.rowNumber)&&raw.rowNumber>0?raw.rowNumber:null;
+    const sourceId=clean(raw.sourceId)||null;
+    const scope=format==='ofx'?sourceScope(options.bankId,options.externalAccountId):null;
     return {transaction:{
-      sourceId:clean(raw.sourceId)||null,
+      sourceId,
       date,description,originalDescription,amountCents,
       type:amountCents<0?'debit':'credit',
       documentNumber:clean(raw.documentNumber)||null,
@@ -60,7 +75,7 @@
       confidence:null,
       duplicateStatus:'unknown',
       reconciliationStatus:'pending',
-      source:{format,accountId,currency,rowNumber}
+      source:{format,accountId,currency,rowNumber,identityScope:scope,identityKey:sourceId&&scope?`${scope}|${sourceId}`:null}
     },errors};
   }
 
@@ -75,5 +90,5 @@
     return {rows,items:rows.filter(row=>row.transaction).map(row=>row.transaction),errors:rows.filter(row=>row.errors.length).map(row=>({rowNumber:row.rowNumber,messages:row.errors})),totalRows:rows.length};
   }
 
-  window.FinTrackBankImport={normalizeDate,normalizeAmount,normalizeTransaction,previewTransactions};
+  window.FinTrackBankImport={normalizeDate,normalizeAmount,normalizeTransaction,previewTransactions,sourceScope,statementPeriod};
 })();
