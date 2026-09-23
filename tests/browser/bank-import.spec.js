@@ -76,6 +76,15 @@ test('CSV bancário exige revisão, grava lote e permite desfazer',async({page})
   await expect(dialog).toBeHidden();
   await expect(page.locator('.bank-batches')).toContainText('extrato.csv');
   expect(await page.evaluate(()=>state.importBatches[0].created.length)).toBe(1);
+  await page.getByRole('button',{name:'Detalhes'}).click();
+  const detail=page.getByRole('dialog',{name:'Detalhes da importação'});
+  await expect(detail).toContainText('Período coberto desconhecido');
+  await expect(detail).toContainText('Linha 2 · Criado');
+  if(test.info().project.name==='mobile-chromium'){
+    const box=await detail.boundingBox(),viewport=page.viewportSize();
+    expect(Math.abs(box.y+box.height-viewport.height)).toBeLessThan(3);
+  }
+  await detail.getByRole('button',{name:'Fechar'}).click();
   await page.reload();
   if(await page.locator('#nav-mobile-toggle').isVisible())await page.locator('#nav-mobile-toggle').click();
   await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
@@ -84,6 +93,51 @@ test('CSV bancário exige revisão, grava lote e permite desfazer',async({page})
   await page.getByRole('dialog').getByRole('button',{name:'Desfazer lote'}).click();
   await expect(page.locator('.bank-batches')).toContainText('desfeito');
   expect(await page.evaluate(()=>state.lancamentos.filter(item=>item.importBatchId).length)).toBe(0);
+});
+
+test('desfazer bloqueado enumera lançamento alterado sem modificar o lote',async({page})=>{
+  await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  await selectFile(page,'csv',{name:'alterado.csv',mimeType:'text/csv',buffer:Buffer.from('Data;Descrição;Valor\n2026-09-21;Mercado;-10,00','utf8')});
+  const review=await analyze(page);
+  await review.locator('[data-bank-category]').selectOption('cat-mercado');
+  await review.getByRole('button',{name:'Salvar decisões'}).click();
+  await page.evaluate(async()=>{const entries=state.lancamentos.map(item=>item.importBatchId?{...item,descricao:'Mercado ajustado'}:item);FinTrackState.replaceState({...state,lancamentos:entries});await saveData();render();});
+  await page.getByRole('button',{name:'Desfazer lote'}).click();
+  const detail=page.getByRole('dialog',{name:'Detalhes da importação'});
+  await expect(detail).toContainText('Linha 2: lançamentos alterados ou removidos');
+  await expect(detail.getByRole('button',{name:'Desfazer lote'})).toHaveCount(0);
+  expect(await page.evaluate(()=>({status:state.importBatches[0].status,entries:state.lancamentos.filter(item=>item.importBatchId).length}))).toEqual({status:'active',entries:1});
+});
+
+test('cobertura mostra somente lacuna entre períodos confirmados',async({page})=>{
+  await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  for(const [name,date,from,to] of [['primeiro.csv','2026-09-05','2026-09-01','2026-09-10'],['segundo.csv','2026-09-17','2026-09-15','2026-09-20']]){
+    await selectFile(page,'csv',{name,mimeType:'text/csv',buffer:Buffer.from(`Data;Descrição;Valor\n${date};${name};-10,00`,'utf8')});
+    await page.locator('#bank-period-from').fill(from);
+    await page.locator('#bank-period-to').fill(to);
+    const review=await analyze(page);
+    await review.locator('[data-bank-category]').selectOption('cat-mercado');
+    await review.getByRole('button',{name:'Salvar decisões'}).click();
+  }
+  await expect(page.locator('.bank-coverage')).toContainText('2026-09-11 a 2026-09-14');
+  await expect(page.locator('.bank-coverage')).toContainText('Um dia sem movimentação não é uma lacuna');
+});
+
+test('prévia de mil linhas mantém paginação e salva sem renderizar toda a lista',async({page})=>{
+  test.slow();
+  await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  const rows=Array.from({length:1000},(_,index)=>`2026-09-${String(index%28+1).padStart(2,'0')};Compra ${index};-10,00`);
+  await selectFile(page,'csv',{name:'mil.csv',mimeType:'text/csv',buffer:Buffer.from(['Data;Descrição;Valor',...rows].join('\n'),'utf8')});
+  const review=await analyze(page);
+  await expect(review).toContainText('1000 linha(s)');
+  await expect(review.locator('[data-bank-row]')).toHaveCount(40);
+  await review.locator('#bank-bulk-debit').selectOption('cat-mercado');
+  await review.getByRole('button',{name:'Aplicar categorias'}).click();
+  await review.getByRole('button',{name:'Salvar decisões'}).click();
+  expect(await page.evaluate(()=>state.importBatches[0].created.length)).toBe(1000);
 });
 
 test('linha inválida pode ser corrigida na revisão antes de salvar',async({page})=>{

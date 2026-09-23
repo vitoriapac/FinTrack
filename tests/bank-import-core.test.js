@@ -53,8 +53,8 @@ assert.equal(imports.sourceScope('001',''),null);
 assert.equal(imports.previewTransactions(null,{format:'csv'}).errors.length,1);
 console.log('bank import core tests: OK');
 
-for(const file of ['js/core/schema.js','js/core/migrations.js','js/core/normalize.js','js/core/validate.js','js/services/financial.js','js/services/import/csv.js','js/services/import/ofx.js','js/services/import/assistant.js','js/services/import/batches.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
-const {FinTrackNormalize,FinTrackValidation,FinTrackBankCsv,FinTrackBankOfx,FinTrackImportAssistant,FinTrackImportBatches}=context.window;
+for(const file of ['js/core/schema.js','js/core/migrations.js','js/core/normalize.js','js/core/validate.js','js/services/financial.js','js/services/import/csv.js','js/services/import/ofx.js','js/services/import/assistant.js','js/services/import/batches.js','js/services/import/coverage.js'])vm.runInContext(fs.readFileSync(file,'utf8'),context,{filename:file});
+const {FinTrackNormalize,FinTrackValidation,FinTrackBankCsv,FinTrackBankOfx,FinTrackImportAssistant,FinTrackImportBatches,FinTrackImportCoverage}=context.window;
 const state=FinTrackNormalize.normalizeData({schemaVersion:9,__centsVersion:1,contas:[{id:'a',nome:'Conta A',saldoInicial:0}],categorias:[{id:'expense',nome:'Outros',tipo:'Saída',orcado:0},{id:'income',nome:'Receita',tipo:'Entrada',orcado:0}],lancamentos:[{id:'old',data:'2026-09-21',descricao:'Mercado',tipo:'Despesa',contaId:'a',categoriaId:'expense',valor:12842,status:'Pago',tipoOperacao:'despesa'}]});
 assert.equal(state.schemaVersion,11);
 assert.equal(state.importBatches.length,0);
@@ -95,11 +95,13 @@ assert.equal(undone.batch.status,'undone');
 assert.throws(()=>FinTrackImportBatches.undo(undone.state,result.batch.id),/desfeito/);
 const changed=JSON.parse(JSON.stringify(result.state));changed.lancamentos[1].descricao='Corrigido';
 assert.throws(()=>FinTrackImportBatches.undo(changed,result.batch.id),/alterados/);
+assert.equal(FinTrackImportBatches.inspectUndo(changed,result.batch.id).conflicts[0].rowNumber,3);
 const closed=JSON.parse(JSON.stringify(result.state));closed.fechamentos={'2026-09':{status:'fechado'}};
 assert.throws(()=>FinTrackImportBatches.undo(closed,result.batch.id),/mês fechado/);
 const reimport=FinTrackImportBatches.commit(result.state,[{transaction:bankPreview.items[1],action:'link',matchId:result.batch.created[0].entryId}],{fileName:'extrato-2.csv',accountId:'a'},ids);
 assert.throws(()=>FinTrackImportBatches.undo(reimport.state,result.batch.id),/Outro lote ativo/);
 assert.equal(FinTrackImportBatches.undo(FinTrackImportBatches.undo(reimport.state,reimport.batch.id).state,result.batch.id).state.lancamentos.length,1);
+assert.equal(FinTrackImportBatches.inspectUndo(reimport.state,result.batch.id).conflicts[0].kind,'linked');
 const conflicting={...bankPreview.items[1],date:'2026-09-24'};
 const conflicts=FinTrackImportBatches.candidates(result.state,conflicting);
 assert.equal(conflicts.length,1);
@@ -110,6 +112,21 @@ assert.equal(FinTrackImportBatches.candidates(state,{...bankPreview.items[0],des
 const nearDate={...bankPreview.items[0],description:'Mercado',date:'2026-09-22'};
 assert.equal(FinTrackImportBatches.candidates(state,nearDate)[0].tier,'probable');
 assert.equal(FinTrackImportBatches.candidates(state,{...bankPreview.items[0],description:'Outro estabelecimento'})[0].tier,'weak');
+const coverageState={contas:[{id:'a'},{id:'b'}],importBatches:[
+  {id:'c1',accountId:'a',status:'active',period:{from:'2026-09-01',to:'2026-09-10',kind:'confirmed'}},
+  {id:'c2',accountId:'a',status:'active',period:{from:'2026-09-11',to:'2026-09-20',kind:'reported'}},
+  {id:'c3',accountId:'a',status:'active',period:{from:'2026-09-18',to:'2026-09-25',kind:'confirmed'}},
+  {id:'c4',accountId:'a',status:'active',period:{from:'2026-10-01',to:'2026-10-05',kind:'confirmed'}},
+  {id:'legacy',accountId:'a',status:'active'},
+  {id:'undone',accountId:'a',status:'undone',period:{from:'2026-09-26',to:'2026-09-30',kind:'confirmed'}}
+]};
+const coverage=FinTrackImportCoverage.analyze(coverageState),accountCoverage=coverage.find(item=>item.accountId==='a');
+assert.equal(accountCoverage.merged.length,2);
+assert.equal(accountCoverage.gaps[0].from,'2026-09-26');
+assert.equal(accountCoverage.gaps[0].to,'2026-09-30');
+assert.equal(accountCoverage.overlaps.length,1);
+assert.equal(accountCoverage.unknownCount,1);
+assert.equal(coverage.find(item=>item.accountId==='b').status,'unknown');
 console.log('bank import workflow tests: OK');
 
 const sgml='OFXHEADER:100\nDATA:OFXSGML\nVERSION:102\n<OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><CURDEF>BRL<BANKACCTFROM><BANKID>001<ACCTID>12345678</BANKACCTFROM><BANKTRANLIST><STMTTRN><TRNTYPE>DEBIT<DTPOSTED>20260921120000<TRNAMT>-12.84<FITID>fit-1<NAME>Mercado<MEMO>Compra</STMTTRN></BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>';

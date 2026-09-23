@@ -23,6 +23,11 @@
     });
     return {byKey,bySource,byLegacySource};
   }
+  function addCandidate(index,entry){
+    const signed=entry.tipo==='Despesa'?-entry.valor:entry.valor,identity=key(entry.contaId,entry.data,signed);
+    if(!index.byKey.has(identity))index.byKey.set(identity,[]);index.byKey.get(identity).push(entry);
+    if(entry.importSource?.sourceId){const sourceKey=`${entry.contaId}|${entry.importSource.identityKey||entry.importSource.sourceId}`,target=entry.importSource.identityKey?index.bySource:index.byLegacySource;if(!target.has(sourceKey))target.set(sourceKey,[]);target.get(sourceKey).push(entry);}
+  }
 
   function candidates(state,transaction,index=candidateIndex(state)){
     const identities=[-1,0,1].map(offset=>key(transaction.source.accountId,offsetDate(transaction.date,offset),transaction.amountCents));
@@ -49,6 +54,7 @@
     const categories=new Map((next.categorias||[]).map(item=>[item.id,item]));
     const existingIds=new Set((next.lancamentos||[]).map(item=>item.id));
     const reservedKeys=new Set();
+    let matchIndex=candidateIndex(next);
     for(const decision of decisions){
       const transaction=decision.transaction,action=decision.action;
       if(!transaction||!['import','link','ignore','transfer'].includes(action))throw new Error('Revise a decisão de cada linha.');
@@ -56,7 +62,7 @@
       if(transaction.source.currency!=='BRL'||!Number.isSafeInteger(transaction.amountCents)||!transaction.amountCents||!window.FinTrackBankImport.normalizeDate(transaction.date))throw new Error(`Linha ${transaction.source.rowNumber}: transação inválida.`);
       if(action==='ignore'){ignored.push(transaction.source.rowNumber);continue;}
       if(action==='link'){
-        const match=candidates(next,transaction).find(item=>item.id===decision.matchId&&item.compatible);
+        const match=candidates(next,transaction,matchIndex).find(item=>item.id===decision.matchId&&item.compatible);
         if(!match)throw new Error(`Linha ${transaction.source.rowNumber}: selecione um lançamento compatível.`);
         linked.push({rowNumber:transaction.source.rowNumber,entryId:match.id});continue;
       }
@@ -94,6 +100,7 @@
         }
         const operation=next.operacoes.find(item=>item.id===transfer.operationId);
         operations.push({operationId:operation.id,signature:operationSignature(operation)});
+        matchIndex=candidateIndex(next);
         continue;
       }
       const category=categories.get(decision.categoryId),type=transaction.amountCents<0?'Despesa':'Receita';
@@ -107,6 +114,7 @@
       existingIds.add(id);
       const entry={id,data:transaction.date,descricao:transaction.description,tipo:type,contaId:transaction.source.accountId,categoriaId:category.id,valor:Math.abs(transaction.amountCents),status:'Pago',fixa:false,tipoOperacao:type==='Despesa'?'despesa':'receita',importBatchId:batchId,importSource:{format:transaction.source.format,rowNumber:transaction.source.rowNumber,sourceId:transaction.sourceId,identityKey:transaction.source.identityKey||null,originalDescription:transaction.originalDescription,documentNumber:transaction.documentNumber}};
       next.lancamentos.push(entry);
+      addCandidate(matchIndex,entry);
       created.push({entryId:id,rowNumber:transaction.source.rowNumber,signature:signature(entry)});
       if(decision.rememberRule)next=window.FinTrackImportAssistant.addRule(next,{pattern:transaction.description,type,categoryId:category.id},idFactory);
     }
@@ -117,32 +125,44 @@
     return {state:next,batch};
   }
 
-  function undo(state,batchId){
-    const next=clone(state),batch=(next.importBatches||[]).find(item=>item.id===batchId);
-    if(!batch||batch.status!=='active')throw new Error('Lote não encontrado ou já desfeito.');
-    const ids=new Set();
+  function inspectUndo(state,batchId){
+    const batch=(state.importBatches||[]).find(item=>item.id===batchId);
+    if(!batch||batch.status!=='active')return {canUndo:false,conflicts:[{kind:'batch',message:'Lote não encontrado ou já desfeito.'}]};
+    const entries=new Map((state.lancamentos||[]).map(item=>[item.id,item]));
+    const operations=new Map((state.operacoes||[]).map(item=>[item.id,item]));
+    const conflicts=[],createdIds=new Set(batch.created.map(item=>item.entryId));
     for(const record of batch.created){
-      const entry=next.lancamentos.find(item=>item.id===record.entryId);
-      if(!entry||signature(entry)!==record.signature)throw new Error('O lote possui lançamentos alterados ou removidos. Revise-os antes de desfazer.');
-      if(next.fechamentos?.[entry.data.slice(0,7)]?.status==='fechado')throw new Error('O lote pertence a um mês fechado. Reabra o mês antes de desfazer.');
-      ids.add(entry.id);
+      const entry=entries.get(record.entryId);
+      if(!entry||signature(entry)!==record.signature)conflicts.push({kind:'created',entryId:record.entryId,rowNumber:record.rowNumber,message:`Linha ${record.rowNumber}: lançamentos alterados ou removidos. Revise este item antes de desfazer.`});
+      else if(state.fechamentos?.[entry.data.slice(0,7)]?.status==='fechado')conflicts.push({kind:'closed',entryId:entry.id,rowNumber:record.rowNumber,message:`Linha ${record.rowNumber}: mês fechado. Reabra ${entry.data.slice(0,7)} antes de desfazer.`});
     }
     for(const record of batch.modified||[]){
-      const entry=next.lancamentos.find(item=>item.id===record.entryId);
-      if(!entry||signature(entry)!==record.signature)throw new Error('Um lançamento vinculado à transferência foi alterado. Revise-o antes de desfazer.');
-      if(next.fechamentos?.[entry.data.slice(0,7)]?.status==='fechado')throw new Error('Um lançamento vinculado à transferência pertence a um mês fechado. Reabra o mês antes de desfazer.');
+      const entry=entries.get(record.entryId);
+      if(!entry||signature(entry)!==record.signature)conflicts.push({kind:'modified',entryId:record.entryId,message:`Movimento oposto ${record.entryId} foi alterado ou removido. Revise-o antes de desfazer.`});
+      else if(state.fechamentos?.[entry.data.slice(0,7)]?.status==='fechado')conflicts.push({kind:'closed',entryId:entry.id,message:`Movimento oposto ${entry.id} pertence a mês fechado. Reabra ${entry.data.slice(0,7)} antes de desfazer.`});
     }
     for(const record of batch.operations||[]){
-      const operation=next.operacoes.find(item=>item.id===record.operationId);
-      if(!operation||operationSignature(operation)!==record.signature)throw new Error('A operação de transferência foi alterada. Revise-a antes de desfazer.');
+      const operation=operations.get(record.operationId);
+      if(!operation||operationSignature(operation)!==record.signature)conflicts.push({kind:'operation',operationId:record.operationId,message:`A operação de transferência ${record.operationId} foi alterada ou removida. Revise-a antes de desfazer.`});
     }
-    if((next.importBatches||[]).some(other=>other.id!==batchId&&other.status==='active'&&(other.linked||[]).some(link=>ids.has(link.entryId))))throw new Error('Outro lote ativo está vinculado a um lançamento deste lote. Desfaça primeiro o vínculo mais recente.');
+    for(const other of state.importBatches||[]){
+      if(other.id===batchId||other.status!=='active')continue;
+      for(const link of other.linked||[])if(createdIds.has(link.entryId))conflicts.push({kind:'linked',entryId:link.entryId,batchId:other.id,message:`Outro lote ativo (${other.fileName||other.id}) está vinculado ao lançamento ${link.entryId}. Desfaça primeiro o vínculo mais recente.`});
+    }
+    return {canUndo:conflicts.length===0,conflicts};
+  }
+  function undo(state,batchId){
+    const inspection=inspectUndo(state,batchId);
+    if(!inspection.canUndo)throw new Error(inspection.conflicts[0].message);
+    const next=clone(state),batch=next.importBatches.find(item=>item.id===batchId);
+    const ids=new Set(batch.created.map(item=>item.entryId));
     next.lancamentos=next.lancamentos.filter(item=>!ids.has(item.id));
-    (batch.modified||[]).forEach(record=>{const index=next.lancamentos.findIndex(item=>item.id===record.entryId);next.lancamentos[index]=record.before;});
+    const restored=new Map((batch.modified||[]).map(record=>[record.entryId,record.before]));
+    next.lancamentos=next.lancamentos.map(item=>restored.get(item.id)||item);
     const operationIds=new Set((batch.operations||[]).map(item=>item.operationId));
     next.operacoes=next.operacoes.filter(item=>!operationIds.has(item.id));
     batch.status='undone';batch.undoneAt=new Date().toISOString();
     return {state:next,batch};
   }
-  window.FinTrackImportBatches={candidateIndex,candidates,commit,undo};
+  window.FinTrackImportBatches={candidateIndex,candidates,commit,inspectUndo,undo};
 })();

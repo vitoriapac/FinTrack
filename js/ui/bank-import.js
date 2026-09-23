@@ -8,9 +8,9 @@
   const accountOptions=(selected,exclude)=>state.contas.filter(account=>account.id!==exclude).map(account=>`<option value="${escape(account.id)}" ${account.id===selected?'selected':''}>${escape(account.nome)}</option>`).join('');
   const categoryOptions=(type,selected='')=>`<option value="">Escolha a categoria</option>${state.categorias.filter(category=>category.tipo===(type==='debit'?'Saída':'Entrada')&&category.natureza!=='movimentacao').map(category=>`<option value="${escape(category.id)}" ${category.id===selected?'selected':''}>${escape(category.nome)}</option>`).join('')}`;
   const identity=transaction=>transaction.sourceId?`${transaction.source.accountId}|${transaction.source.identityKey||transaction.sourceId}`:[transaction.source.accountId,transaction.date,transaction.amountCents,transaction.description.toLowerCase()].join('|');
-  function showStep(title,body,onMount,step){session.screen={title,body,onMount,step};render();}
+  function showStep(title,body,onMount,step){session.screen={title,body,onMount,step};render();const heading=document.querySelector('.bank-import-screen h2');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}}
   function leave(){session=null;setView('lancamentos');}
-  function start(){session={screen:null};setView('importar-extrato');}
+  function start(){session={screen:null};setView('importar-extrato');const heading=document.querySelector('.bank-import-screen h2');if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true});}}
   FinTrackViews.register('importar-extrato',()=>{
     const screen=session?.screen;
     return `<div class="page-header"><div class="page-heading"><h1 class="page-title">Importar extrato</h1><p class="page-sub">CSV e OFX · dados processados localmente</p></div><button class="btn btn-ghost" id="bank-leave">Voltar a Lançamentos</button></div><section class="section bank-import-screen"><nav class="bank-steps" aria-label="Etapas da importação">${['Arquivo','Conta','Configuração','Análise'].map((label,index)=>`<span class="${index===(screen?.step||0)?'is-current':''}" ${index===(screen?.step||0)?'aria-current="step"':''}>${index+1}. ${label}</span>`).join('')}</nav><h2>${escape(screen?.title||'Escolha um extrato')}</h2>${screen?.body||'<p>Escolha um arquivo CSV ou OFX de até 10 MB. Nenhuma transação será salva antes da sua revisão.</p><div class="bank-file-choices"><label class="btn btn-primary" for="bank-csv-file">Escolher CSV</label><input id="bank-csv-file" type="file" accept=".csv,text/csv" hidden><label class="btn btn-ghost" for="bank-ofx-file">Escolher OFX</label><input id="bank-ofx-file" type="file" accept=".ofx,.qfx,application/x-ofx" hidden></div><p id="bank-file-error" class="form-error" role="alert"></p>'}</section>`;
@@ -176,6 +176,31 @@
     }catch(error){message('bank-review-error',error.message);}
   }
 
+  function showBatchDetail(batchId,page=0){
+    const batch=(state.importBatches||[]).find(item=>item.id===batchId);
+    if(!batch){FinTrackModal.info('Lote indisponível','Este lote não existe mais.');return;}
+    const records=[...(batch.created||[]).map(item=>({kind:'Criado',rowNumber:item.rowNumber,entryId:item.entryId})),...(batch.linked||[]).map(item=>({kind:'Vinculado',rowNumber:item.rowNumber,entryId:item.entryId})),...(batch.ignored||[]).map(rowNumber=>({kind:'Ignorado',rowNumber}))];
+    const totalPages=Math.max(1,Math.ceil(records.length/40));page=Math.max(0,Math.min(page,totalPages-1));
+    const rows=records.slice(page*40,page*40+40).map(record=>{const entry=record.entryId?state.lancamentos.find(item=>item.id===record.entryId):null;return `<li><strong>Linha ${escape(record.rowNumber)} · ${record.kind}</strong><span>${entry?`${escape(entry.data)} · ${escape(entry.descricao)} · ${money(entry.valor)}`:record.entryId?'Lançamento não disponível':'Nenhum lançamento criado'}</span></li>`;}).join('');
+    const inspection=batch.status==='active'?FinTrackImportBatches.inspectUndo(state,batchId):null;
+    const conflicts=inspection?.conflicts||[];
+    const body=`<div class="bank-batch-detail"><p><strong>${escape(batch.fileName||'Extrato')}</strong> · ${escape(batch.format?.toUpperCase()||'CSV')} · ${escape(batch.createdAt?.slice(0,10)||'')} · ${batch.status==='active'?'Ativo':'Desfeito'}</p><p>Conta: ${escape(state.contas.find(account=>account.id===batch.accountId)?.nome||'Conta removida')} · ${batch.totalRows} linha(s) · ${batch.created.length} criado(s), ${batch.linked.length} vinculado(s), ${batch.ignored.length} ignorado(s).</p><p>${batch.period?`Período ${escape(batch.period.kind==='reported'?'informado no OFX':'confirmado no CSV')}: ${escape(batch.period.from)} a ${escape(batch.period.to)}.`:'Período coberto desconhecido. Lotes antigos não recebem cobertura presumida.'}</p>${conflicts.length?`<div class="bank-undo-conflicts" role="alert"><strong>Desfazer bloqueado por ${conflicts.length} conflito(s):</strong><ul>${conflicts.map(item=>`<li>${escape(item.message)}</li>`).join('')}</ul></div>`:batch.status==='active'?'<p>Este lote pode ser desfeito, sujeito à confirmação.</p>':''}<ol class="bank-detail-rows">${rows||'<li>Sem decisões registradas.</li>'}</ol><div class="bank-pages"><button class="btn btn-ghost" id="bank-detail-prev" ${page===0?'disabled':''}>Anterior</button><span>Página ${page+1} de ${totalPages}</span><button class="btn btn-ghost" id="bank-detail-next" ${page+1>=totalPages?'disabled':''}>Próxima</button></div><div class="modal-actions"><button class="btn btn-ghost" id="bank-detail-close">Fechar</button>${batch.status==='active'&&inspection.canUndo?`<button class="btn btn-primary" id="bank-detail-undo">Desfazer lote</button>`:''}</div></div>`;
+    if(document.getElementById('modal-title'))FinTrackModal.close();
+    FinTrackModal.open('Detalhes da importação',body,()=>{
+      document.getElementById('bank-detail-prev').onclick=()=>showBatchDetail(batchId,page-1);
+      document.getElementById('bank-detail-next').onclick=()=>showBatchDetail(batchId,page+1);
+      document.getElementById('bank-detail-close').onclick=FinTrackModal.close;
+      const undoButton=document.getElementById('bank-detail-undo');if(undoButton)undoButton.onclick=()=>confirmUndo(batchId);
+    });
+  }
+  function confirmUndo(batchId){
+    const inspection=FinTrackImportBatches.inspectUndo(state,batchId);
+    if(!inspection.canUndo){showBatchDetail(batchId);return;}
+    FinTrackModal.confirmAction('Desfazer os lançamentos criados por este lote? Transferências incorporadas serão restauradas. Regras de categoria criadas por você permanecem disponíveis.',async()=>{
+      try{const result=FinTrackImportBatches.undo(state,batchId),report=FinTrackValidation.validateData(result.state);if(!report.valid)throw new Error(report.errors[0]);const previous=state;FinTrackState.replaceState(result.state);registrarHistorico('desfazer_importacao_bancaria',`Lote desfeito: ${result.batch.fileName}`,{batchId:result.batch.id,removidos:result.batch.created.length});if(!await saveData()){FinTrackState.replaceState(previous);throw new Error('Falha ao salvar. O lote foi preservado.');}render();}catch(error){if(!FinTrackImportBatches.inspectUndo(state,batchId).canUndo)showBatchDetail(batchId);else FinTrackModal.info('Não foi possível desfazer',error.message);}
+    },'Desfazer lote');
+  }
+
   FinTrackScreenEvents.register(main=>{
     const open=main.querySelector('#btn-importar-extrato');if(open)open.onclick=start;
     const back=main.querySelector('#bank-leave');if(back)back.onclick=leave;
@@ -186,8 +211,7 @@
     const ruleType=main.querySelector('#bank-rule-type');if(ruleType)ruleType.onchange=event=>{document.getElementById('bank-rule-category').innerHTML=categoryOptions(event.target.value==='Despesa'?'debit':'credit').replace('<option value="">Escolha a categoria</option>','');};
     const addRule=main.querySelector('#bank-rule-add');if(addRule)addRule.onclick=async()=>{try{const previous=state,next=FinTrackImportAssistant.addRule(state,{pattern:document.getElementById('bank-rule-pattern').value,type:document.getElementById('bank-rule-type').value,categoryId:document.getElementById('bank-rule-category').value},uid);FinTrackState.replaceState(next);if(!await saveData()){FinTrackState.replaceState(previous);throw new Error('Falha ao salvar a regra.');}render();}catch(error){message('bank-rule-error',error.message);}};
     main.querySelectorAll('[data-bank-remove-rule]').forEach(button=>button.onclick=async()=>{const previous=state;FinTrackState.replaceState(FinTrackImportAssistant.removeRule(state,button.dataset.bankRemoveRule));if(!await saveData()){FinTrackState.replaceState(previous);message('bank-rule-error','Falha ao remover a regra.');return;}render();});
-    main.querySelectorAll('[data-undo-bank-batch]').forEach(button=>button.onclick=()=>FinTrackModal.confirmAction('Desfazer os lançamentos criados por este lote? Transferências incorporadas serão restauradas. Regras de categoria criadas por você permanecem disponíveis.',async()=>{
-      try{const result=FinTrackImportBatches.undo(state,button.dataset.undoBankBatch),report=FinTrackValidation.validateData(result.state);if(!report.valid)throw new Error(report.errors[0]);const previous=state;FinTrackState.replaceState(result.state);registrarHistorico('desfazer_importacao_bancaria',`Lote desfeito: ${result.batch.fileName}`,{batchId:result.batch.id,removidos:result.batch.created.length});if(!await saveData()){FinTrackState.replaceState(previous);throw new Error('Falha ao salvar. O lote foi preservado.');}render();}catch(error){FinTrackModal.info('Não foi possível desfazer',error.message);}
-    },'Desfazer lote'));
+    main.querySelectorAll('[data-bank-detail]').forEach(button=>button.onclick=()=>showBatchDetail(button.dataset.bankDetail));
+    main.querySelectorAll('[data-undo-bank-batch]').forEach(button=>button.onclick=()=>confirmUndo(button.dataset.undoBankBatch));
   });
 })();

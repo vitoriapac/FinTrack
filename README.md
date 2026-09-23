@@ -39,6 +39,8 @@ FinTrack é um aplicativo web de controle financeiro pessoal construído em HTML
 - Tela de importação (4.11): fluxo em Lançamentos com arquivo, confirmação explícita da conta, configuração com exemplos e análise das linhas antes de salvar. QIF permanece fora do escopo.
 - Conciliação assistida (4.12): caixa de exceções e decisões em lote com confirmação; correspondências fortes, prováveis e fracas sem porcentagem artificial; transferências entre contas podem combinar movimentos com até um dia de diferença, preservando as datas e respeitando meses fechados.
 - Classificação explicável (4.13): regras explícitas têm prioridade sobre recorrência histórica consistente; cada sugestão mostra sua origem. Regras genéricas são bloqueadas e a gestão fica em Configurações → Importações.
+- Histórico e cobertura (4.14): detalhes paginados por lote, conflitos específicos antes de desfazer, sobreposições e intervalos não cobertos entre extratos por conta. Lotes sem período confiável permanecem com cobertura desconhecida; esta leitura é separada da nota de Qualidade dos Dados.
+- Consolidação e QA (4.15): cards de revisão com alvos de toque e foco acessível, detalhes do lote em painel inferior no celular, índices para conciliação e testes de escala com 100, 1.000, 5.000 e 10.000 linhas, incluindo gravação e desfazer.
 
 ## Estrutura
 
