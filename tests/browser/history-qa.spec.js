@@ -62,7 +62,7 @@ test('QA responsivo mantém a aplicação dentro de cinco viewports',async({page
   for(const [width,height] of sizes){
     await page.setViewportSize({width,height});
     if(width<=640)await page.evaluate(()=>document.querySelector('.sidebar').classList.add('nav-open'));
-    for(const view of [['Home','home'],['Lançamentos','lancamentos'],['Agenda','agenda'],['Balanço','balanco'],['Visão anual','anual'],['Patrimônio','patrimonio'],['Histórico','historico'],['Planejamento','planejamento'],['Projeção','projecao'],['Metas','metas'],['Cartões','cartoes'],['Dívidas','dividas'],['Simuladores','simuladores'],['Auditoria','auditoria'],['Instalação','instalacao'],['Cadastro','cadastro']]){
+    for(const view of [['Home','home'],['Lançamentos','lancamentos'],['Agenda','agenda'],['Balanço','balanco'],['Visão anual','anual'],['Patrimônio','patrimonio'],['Histórico','historico'],['Planejamento','planejamento'],['Projeção','projecao'],['Metas','metas'],['Cartões','cartoes'],['Dívidas','dividas'],['Cenários','simuladores'],['Auditoria','auditoria'],['Instalação','instalacao'],['Cadastro','cadastro']]){
       await page.evaluate(target=>setView(target),view[1]);
       const layout=await page.evaluate(()=>({scrollWidth:document.documentElement.scrollWidth,clientWidth:document.documentElement.clientWidth,mainRight:document.querySelector('main').getBoundingClientRect().right}));
       expect(layout.scrollWidth,`${view[0]} em ${width}px não deve criar scroll global`).toBeLessThanOrEqual(layout.clientWidth+1);
@@ -76,7 +76,7 @@ test('QA estrutural mantém nomes acessíveis, ids únicos e console limpo',asyn
   const failures=[];
   page.on('pageerror',error=>failures.push(`pageerror: ${error.message}`));
   page.on('console',message=>{if(message.type()==='error')failures.push(`console: ${message.text()}`);});
-  for(const [view,target] of [['Home','home'],['Lançamentos','lancamentos'],['Agenda','agenda'],['Balanço','balanco'],['Visão anual','anual'],['Patrimônio','patrimonio'],['Histórico','historico'],['Planejamento','planejamento'],['Projeção','projecao'],['Metas','metas'],['Cartões','cartoes'],['Dívidas','dividas'],['Simuladores','simuladores'],['Auditoria','auditoria'],['Instalação','instalacao'],['Cadastro','cadastro'],['Instruções','instrucoes']]){
+  for(const [view,target] of [['Home','home'],['Lançamentos','lancamentos'],['Agenda','agenda'],['Balanço','balanco'],['Visão anual','anual'],['Patrimônio','patrimonio'],['Histórico','historico'],['Planejamento','planejamento'],['Projeção','projecao'],['Metas','metas'],['Cartões','cartoes'],['Dívidas','dividas'],['Cenários','simuladores'],['Auditoria','auditoria'],['Instalação','instalacao'],['Cadastro','cadastro'],['Instruções','instrucoes']]){
     await page.evaluate(target=>setView(target),target);
     const audit=await page.evaluate(()=>{
       const visible=element=>Boolean(element.offsetWidth||element.offsetHeight||element.getClientRects().length);

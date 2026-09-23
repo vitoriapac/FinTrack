@@ -9,8 +9,8 @@ test.beforeEach(async({page})=>{
 
 test('menu lateral inicia recolhido e não cria barras de rolagem',async({page})=>{
   const groups=page.locator('.nav-group-toggle');
-  await expect(groups).toHaveCount(4);
-  for(let index=0;index<4;index++)await expect(groups.nth(index)).toHaveAttribute('aria-expanded','false');
+  await expect(groups).toHaveCount(5);
+  for(let index=0;index<5;index++)await expect(groups.nth(index)).toHaveAttribute('aria-expanded','false');
   const dimensions=await page.locator('.sidebar').evaluate(element=>({scrollWidth:element.scrollWidth,clientWidth:element.clientWidth,scrollHeight:element.scrollHeight,clientHeight:element.clientHeight,overflow:getComputedStyle(element).overflow}));
   expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
   expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.clientHeight);

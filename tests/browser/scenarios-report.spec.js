@@ -1,17 +1,30 @@
 const {test,expect}=require('@playwright/test');
 test.beforeEach(async({page})=>{await page.goto('/');await page.evaluate(()=>localStorage.clear());await page.reload();});
-test('cenário temporário compara caixa sem alterar estado',async({page})=>{
+test('Cenários orienta a escolha, explica o impacto e não altera estado',async({page})=>{
   await page.evaluate(()=>setView('simuladores'));
+  await expect(page.getByRole('heading',{name:'Cenários'})).toBeVisible();
+  for(const kind of ['reduce-expense','reserve','debt','installment'])await expect(page.locator(`[data-scenario-kind="${kind}"]`)).toBeVisible();
   const before=await page.evaluate(()=>JSON.stringify(FinTrackState.getState()));
-  await page.getByLabel('Mudança').selectOption('reduce-expense');
-  await page.getByLabel('Valor (R$)').fill('150');
-  await page.getByRole('button',{name:'Comparar cenários'}).click();
+  await page.getByRole('button',{name:/Guardar para a reserva/}).click();
+  await expect(page.locator('[data-scenario-kind="reserve"]')).toHaveAttribute('aria-pressed','true');
+  await expect(page.locator('#scenario-guidance')).toContainText('reduz o caixa disponível');
+  await page.locator('[data-scenario-kind="reduce-expense"]').click();
+  await page.getByLabel('Economia mensal (R$)').fill('150');
+  await page.getByRole('button',{name:'Comparar com o plano atual'}).click();
   await expect(page.locator('#scenario-result')).toContainText('Saldo projetado: atual × cenário');
+  await expect(page.locator('#scenario-result')).toContainText('Como interpretar');
+  await expect(page.locator('#scenario-result')).toContainText('mais caixa');
   await expect(page.locator('#scenario-result')).toContainText('Nenhum lançamento, orçamento ou dívida foi alterado');
   expect(await page.evaluate(()=>JSON.stringify(FinTrackState.getState()))).toBe(before);
-  await page.getByLabel('Mudança').selectOption('debt');
-  await page.getByRole('button',{name:'Comparar cenários'}).click();
+  await page.locator('[data-scenario-kind="installment"]').click();
+  await expect(page.locator('#scenario-installments-field')).toBeVisible();
+  await expect(page.locator('#scenario-debt-field')).toBeHidden();
+  await page.locator('[data-scenario-kind="debt"]').click();
+  await expect(page.locator('#scenario-debt-field')).toBeVisible();
+  await expect(page.locator('#scenario-installments-field')).toBeHidden();
+  await page.getByRole('button',{name:'Comparar com o plano atual'}).click();
   await expect(page.locator('#scenario-result')).toContainText('Selecione uma dívida ativa');
+  expect(await page.evaluate(()=>JSON.stringify(FinTrackState.getState()))).toBe(before);
 });
 test('relatório visual usa apenas snapshot e comparação congelada',async({page})=>{
   const result=await page.evaluate(()=>{const demo=criarDadosDemo(),entries=Object.entries(demo.fechamentos).sort(([a],[b])=>a.localeCompare(b)),[key,closing]=entries.at(-1),previous=entries.at(-2)[1],before=JSON.stringify(closing.snapshot),html=FinTrackPdfReport.buildHtml(key,closing,previous);return {html,unchanged:JSON.stringify(closing.snapshot)===before};});
