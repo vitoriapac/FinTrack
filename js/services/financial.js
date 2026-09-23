@@ -12,8 +12,8 @@
     const operationId=input.operacaoId||nextId('op-transferencia',idFactory);
     const base={operacaoId:operationId,tipoOperacao:'transferencia',natureza:'transferencia',data:input.data,descricao:input.descricao||'Transferência entre contas',valor:amount,status:input.status||'Pendente',fixa:false};
     return [
-      {...base,id:input.saidaId||nextId('transf',idFactory),tipo:'Despesa',movimentoTransferencia:'saida',contaId:input.contaId,contaDestinoId:input.contaDestinoId},
-      {...base,id:input.entradaId||nextId('transf',idFactory),tipo:'Receita',movimentoTransferencia:'entrada',contaId:input.contaDestinoId,contaOrigemId:input.contaId},
+      {...base,id:input.saidaId||nextId('transf',idFactory),data:input.saidaData||input.data,tipo:'Despesa',movimentoTransferencia:'saida',contaId:input.contaId,contaDestinoId:input.contaDestinoId},
+      {...base,id:input.entradaId||nextId('transf',idFactory),data:input.entradaData||input.data,tipo:'Receita',movimentoTransferencia:'entrada',contaId:input.contaDestinoId,contaOrigemId:input.contaId},
     ];
   }
 

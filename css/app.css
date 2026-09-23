@@ -121,6 +121,10 @@
   .bank-map-grid label,.bank-bulk label,.bank-row-controls label{display:grid;gap:4px;font-size:13px;min-width:0;}
   .bank-map-grid select,.bank-bulk select,.bank-row-controls select{width:100%;min-width:0;padding:8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);color:var(--ink);}
   .bank-bulk button{align-self:end;}
+  .bank-inbox,.bank-bulk-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0;}
+  .bank-inbox .active{box-shadow:inset 0 0 0 2px var(--ink);}
+  .bank-bulk-actions span{color:var(--muted);font-size:13px;}
+  .bank-row-select{display:flex;align-items:center;gap:6px;font-size:12px;margin-bottom:8px;color:var(--muted);}
   .bank-review-list{display:grid;gap:10px;max-height:65vh;overflow:auto;}
   .bank-row,.bank-batch{display:flex;justify-content:space-between;align-items:start;gap:16px;padding:12px 16px;border:1px solid var(--line-soft);border-radius:var(--radius);}
   .bank-row p{margin:5px 0;overflow-wrap:anywhere;}.bank-row small{display:block;color:var(--muted);max-width:300px;}

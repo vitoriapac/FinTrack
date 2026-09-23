@@ -27,6 +27,40 @@ test('conta exige confirmação e período CSV só é salvo quando informado',as
   expect(await page.evaluate(()=>state.importBatches[0].period)).toEqual({from:'2026-09-01',to:'2026-09-30',kind:'confirmed'});
 });
 
+test('caixa de exceções permite ignorar em lote com confirmação sem decidir vínculos automaticamente',async({page})=>{
+  await page.evaluate(async()=>{FinTrackState.replaceState({...state,lancamentos:[...state.lancamentos,{id:'existing-import-check',data:'2026-09-21',descricao:'Mercado',tipo:'Despesa',contaId:state.contas[0].id,categoriaId:'cat-mercado',valor:1000,status:'Pago',tipoOperacao:'despesa'}]});await saveData();});
+  await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  await selectFile(page,'csv',{name:'lote.csv',mimeType:'text/csv',buffer:Buffer.from('Data;Descrição;Valor\n2026-09-21;Mercado;-10,00\n2026-09-22;Farmácia;-5,00','utf8')});
+  const review=await analyze(page);
+  await expect(review).toContainText('1 pendente(s)');
+  await review.getByRole('button',{name:/Caixa de exceções/}).click();
+  await expect(review.locator('[data-bank-row]')).toHaveCount(1);
+  await review.getByRole('button',{name:'Selecionar página'}).click();
+  await review.getByRole('button',{name:'Ignorar selecionadas'}).click();
+  await expect(page.getByRole('dialog',{name:'Confirmar'})).toContainText('Ignorar 1 linha');
+  await page.getByRole('dialog',{name:'Confirmar'}).getByRole('button',{name:'Ignorar linhas'}).click();
+  await expect(review).toContainText('0 pendente(s)');
+  await review.getByRole('button',{name:/Prontas/}).click();
+  await review.locator('[data-bank-category]').selectOption('cat-mercado');
+  await review.getByRole('button',{name:'Salvar decisões'}).click();
+  expect(await page.evaluate(()=>({ignored:state.importBatches[0].ignored.length,created:state.importBatches[0].created.length}))).toEqual({ignored:1,created:1});
+});
+
+test('correspondência de data próxima é provável e só vincula após decisão manual',async({page})=>{
+  await page.evaluate(async()=>{FinTrackState.replaceState({...state,lancamentos:[...state.lancamentos,{id:'near-match',data:'2026-09-21',descricao:'Mercado Central',tipo:'Despesa',contaId:state.contas[0].id,categoriaId:'cat-mercado',valor:1000,status:'Pago',tipoOperacao:'despesa'}]});await saveData();});
+  await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
+  await selectFile(page,'csv',{name:'proximo.csv',mimeType:'text/csv',buffer:Buffer.from('Data;Descrição;Valor\n2026-09-22;Mercado Central;-10,00','utf8')});
+  const review=await analyze(page);
+  await expect(review).toContainText('1 provável');
+  await expect(review.locator('[data-bank-action]')).toHaveValue('review');
+  await review.locator('[data-bank-action]').selectOption('link');
+  await review.locator('[data-bank-match]').selectOption('near-match');
+  await review.getByRole('button',{name:'Salvar decisões'}).click();
+  expect(await page.evaluate(()=>({linked:state.importBatches[0].linked.length,created:state.importBatches[0].created.length}))).toEqual({linked:1,created:0});
+});
+
 test('CSV bancário exige revisão, grava lote e permite desfazer',async({page})=>{
   await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
   await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
@@ -81,7 +115,7 @@ test('reimportação pede decisão e vínculo manual preserva o lançamento ante
   await page.getByRole('button',{name:'Salvar decisões'}).click();
   await selectFile(page,'csv',file);
   const dialog=await analyze(page);
-  await expect(dialog).toContainText('Possível correspondência');
+  await expect(dialog).toContainText('Correspondências: 1 forte');
   await dialog.getByRole('button',{name:'Salvar decisões'}).click();
   await expect(dialog.getByRole('alert')).toContainText('Resolva');
   await dialog.locator('[data-bank-action]').selectOption('link');
@@ -108,14 +142,19 @@ test('regra local explica categoria sugerida no CSV',async({page})=>{
   await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
   await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
   await page.getByRole('button',{name:'Regras de categoria'}).click();
-  const rules=page.getByRole('dialog',{name:'Regras de categoria'});
+  const rules=page.locator('.section').filter({has:page.getByRole('heading',{name:'Regras de categoria'})});
+  await expect(page.getByRole('heading',{name:'Configurações'})).toBeVisible();
+  await rules.locator('#bank-rule-pattern').fill('PIX');
+  await rules.getByRole('button',{name:'Adicionar regra'}).click();
+  await expect(rules.locator('#bank-rule-error')).toContainText('genérico');
   await rules.locator('#bank-rule-pattern').fill('mercado');
   await rules.locator('#bank-rule-category').selectOption('cat-mercado');
   await rules.getByRole('button',{name:'Adicionar regra'}).click();
-  await rules.getByRole('button',{name:'Fechar'}).click();
+  await page.locator('.nav-group-toggle').filter({hasText:'Movimentações'}).click();
+  await page.getByRole('button',{name:'Lançamentos',exact:true}).click();
   await selectFile(page,'csv',{name:'regra.csv',mimeType:'text/csv',buffer:Buffer.from('Data;Descrição;Valor\n2026-09-21;Mercado Central;-10,00','utf8')});
   const review=await analyze(page);
-  await expect(review).toContainText('Regra local: descrição contém “mercado”');
+  await expect(review).toContainText('Regra local explícita: descrição contém “mercado”');
   await expect(review.locator('[data-bank-category]')).toHaveValue('cat-mercado');
 });
 

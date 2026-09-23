@@ -4,6 +4,8 @@
   const signature=entry=>JSON.stringify([entry.data,entry.descricao,entry.tipo,entry.contaId,entry.categoriaId,entry.valor,entry.status,entry.tipoOperacao,entry.importBatchId,entry.importSource,entry.operacaoId||null,entry.natureza||null,entry.movimentoTransferencia||null,entry.contaDestinoId||null,entry.contaOrigemId||null]);
   const operationSignature=operation=>JSON.stringify([operation.id,operation.tipo,operation.status,operation.valor,operation.contaId,operation.referencias,operation.lancamentoIds]);
   const key=(accountId,date,amountCents)=>[accountId,date,amountCents].join('|');
+  const offsetDate=(date,offset)=>{const value=new Date(`${date}T12:00:00Z`);value.setUTCDate(value.getUTCDate()+offset);return value.toISOString().slice(0,10);};
+  const similarity=(first,second)=>{const tokens=value=>new Set(String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().match(/[a-z0-9]+/g)||[]);const a=tokens(first),b=tokens(second);return a.size&&b.size?[...a].filter(token=>b.has(token)).length/new Set([...a,...b]).size:0;};
 
   function candidateIndex(state){
     const byKey=new Map(),bySource=new Map(),byLegacySource=new Map();
@@ -23,11 +25,20 @@
   }
 
   function candidates(state,transaction,index=candidateIndex(state)){
-    const identity=key(transaction.source.accountId,transaction.date,transaction.amountCents);
+    const identities=[-1,0,1].map(offset=>key(transaction.source.accountId,offsetDate(transaction.date,offset),transaction.amountCents));
     const sourceKey=`${transaction.source.accountId}|${transaction.source.identityKey||transaction.sourceId}`;
     const legacyKey=`${transaction.source.accountId}|${transaction.sourceId}`;
-    const matches=[...(index.byKey.get(identity)||[]),...(transaction.sourceId?index.bySource.get(sourceKey)||[]:[]),...(transaction.sourceId?index.byLegacySource.get(legacyKey)||[]:[])];
-    return [...new Map(matches.map(entry=>[entry.id,entry])).values()].map(entry=>{const compatible=entry.data===transaction.date&&(entry.tipo==='Despesa'?-entry.valor:entry.valor)===transaction.amountCents;const sameScope=Boolean(transaction.source.identityKey&&entry.importSource?.identityKey===transaction.source.identityKey);return {id:entry.id,description:entry.descricao,categoryId:entry.categoriaId,compatible,exactSource:Boolean(transaction.sourceId&&entry.importSource?.sourceId===transaction.sourceId&&(sameScope||!entry.importSource?.identityKey&&compatible)),exactDescription:String(entry.descricao||'').trim().toLowerCase()===transaction.description.toLowerCase()};});
+    const scoped=transaction.sourceId?index.bySource.get(sourceKey)||[]:[],legacy=transaction.sourceId?index.byLegacySource.get(legacyKey)||[]:[];
+    const matches=[...identities.flatMap(identity=>index.byKey.get(identity)||[]),...scoped,...legacy];
+    return [...new Map(matches.map(entry=>[entry.id,entry])).values()].map(entry=>{
+      const sameAmount=(entry.tipo==='Despesa'?-entry.valor:entry.valor)===transaction.amountCents;
+      const distance=Math.abs(Date.parse(`${entry.data}T12:00:00Z`)-Date.parse(`${transaction.date}T12:00:00Z`))/86400000;
+      const sameScope=Boolean(transaction.source.identityKey&&entry.importSource?.identityKey===transaction.source.identityKey&&entry.importSource?.sourceId===transaction.sourceId);
+      const legacySource=Boolean(!entry.importSource?.identityKey&&transaction.sourceId&&entry.importSource?.sourceId===transaction.sourceId&&distance===0&&sameAmount);
+      const likeness=similarity(entry.descricao,transaction.description),exactDescription=String(entry.descricao||'').trim().toLowerCase()===transaction.description.toLowerCase();
+      const tier=sameScope&&sameAmount&&distance===0||sameAmount&&distance===0&&exactDescription?'strong':sameAmount&&distance<=1&&(sameScope||likeness>=0.6)?'probable':sameAmount&&distance===0?'weak':'conflict';
+      return {id:entry.id,description:entry.descricao,date:entry.data,categoryId:entry.categoriaId,tier,compatible:tier!=='conflict',exactSource:sameScope||legacySource,exactDescription};
+    }).filter(candidate=>candidate.tier!=='conflict'||scoped.some(entry=>entry.id===candidate.id)||legacy.some(entry=>entry.id===candidate.id));
   }
 
   function commit(state,decisions,metadata,idFactory){
@@ -59,13 +70,14 @@
         if(oppositeCandidates.length&&!counterpart)throw new Error(`Linha ${transaction.source.rowNumber}: selecione o movimento oposto existente para evitar duplicação.`);
         if(decision.counterpartId){
           const original=state.lancamentos.find(entry=>entry.id===decision.counterpartId);
-          if(!counterpart||!original||counterpart.tipoOperacao!==(debit?'receita':'despesa')||counterpart.contaId!==destination||counterpart.data!==transaction.date||counterpart.valor!==Math.abs(transaction.amountCents)||counterpart.status!=='Pago')throw new Error(`Linha ${transaction.source.rowNumber}: movimento oposto incompatível.`);
+          if(!counterpart||!original||counterpart.tipoOperacao!==(debit?'receita':'despesa')||counterpart.contaId!==destination||window.FinTrackImportAssistant.dayDistance(counterpart.data,transaction.date)>1||counterpart.valor!==Math.abs(transaction.amountCents)||counterpart.status!=='Pago')throw new Error(`Linha ${transaction.source.rowNumber}: movimento oposto incompatível.`);
+          if(next.fechamentos?.[counterpart.data.slice(0,7)]?.status==='fechado')throw new Error(`Linha ${transaction.source.rowNumber}: o movimento oposto pertence a um mês fechado.`);
         }
         const newId=idFactory('import-entry'),existingId=counterpart?.id;
         if(existingIds.has(newId))throw new Error('Identificador de lançamento repetido.');
         existingIds.add(newId);
         if(counterpart)next.lancamentos=next.lancamentos.filter(entry=>entry.id!==counterpart.id);
-        const transfer=window.FinTrackServices.transfers.upsert(next,{data:transaction.date,descricao:transaction.description,contaId:origin,contaDestinoId:target,valor:Math.abs(transaction.amountCents),status:'Pago',saidaId:debit?newId:existingId,entradaId:debit?existingId:newId},idFactory);
+        const transfer=window.FinTrackServices.transfers.upsert(next,{data:transaction.date,saidaData:debit?transaction.date:counterpart?.data,entradaData:debit?counterpart?.data:transaction.date,descricao:transaction.description,contaId:origin,contaDestinoId:target,valor:Math.abs(transaction.amountCents),status:'Pago',saidaId:debit?newId:existingId,entradaId:debit?existingId:newId},idFactory);
         next=transfer.state;
         const imported=transfer.items.find(entry=>entry.id===newId);
         const stored=next.lancamentos.find(entry=>entry.id===newId);
@@ -118,6 +130,7 @@
     for(const record of batch.modified||[]){
       const entry=next.lancamentos.find(item=>item.id===record.entryId);
       if(!entry||signature(entry)!==record.signature)throw new Error('Um lançamento vinculado à transferência foi alterado. Revise-o antes de desfazer.');
+      if(next.fechamentos?.[entry.data.slice(0,7)]?.status==='fechado')throw new Error('Um lançamento vinculado à transferência pertence a um mês fechado. Reabra o mês antes de desfazer.');
     }
     for(const record of batch.operations||[]){
       const operation=next.operacoes.find(item=>item.id===record.operationId);
