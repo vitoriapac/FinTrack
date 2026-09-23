@@ -32,6 +32,7 @@ FinTrack é um aplicativo web de controle financeiro pessoal construído em HTML
 - Cenários 2.0 (4.2): área própria para hipóteses de economia, reserva, pagamento de dívida ou compra parcelada, com comparação explicada do menor saldo e confirmação de que os dados reais não são alterados
 - Extrato Financeiro (4.3): consulta por período, conta, categoria, tipo, status e descrição; totais distinguem caixa, resultado operacional, investimentos, transferências e pagamentos, com exportação CSV do filtro aplicado
 - Consolidação visual e técnica (4.4): Lançamentos e Extrato compartilham classificação financeira e tabela acessível, com componentes e estilos guiados pelos tokens do produto
+- Núcleo de importação bancária (4.5): prévia local e pura de transações intermediárias, com origem por linha, normalização de datas e centavos, validação de BRL e erros estruturados; a leitura ainda não grava lançamentos
 
 ## Estrutura
 
@@ -42,6 +43,7 @@ js/app.js               composição, renderizadores e inicialização da aplica
 js/core/                schema, migrations, normalização, validação e fechamento
 js/financial-core.js    regras financeiras centralizadas
 js/services/            operações imutáveis de lançamentos, pagamentos e cadastros
+js/services/import/     modelo intermediário e prévia de importação bancária
 js/views/               renderização das telas
 js/forms/               formulários e operações de domínio
 js/ui/                  navegação, modais, filtros e handlers
