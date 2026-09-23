@@ -34,6 +34,7 @@ FinTrack é um aplicativo web de controle financeiro pessoal construído em HTML
 - Consolidação visual e técnica (4.4): Lançamentos e Extrato compartilham classificação financeira e tabela acessível, com componentes e estilos guiados pelos tokens do produto
 - Núcleo de importação bancária (4.5): prévia local e pura de transações intermediárias, com origem por linha, normalização de datas e centavos, validação de BRL e erros estruturados; a leitura ainda não grava lançamentos
 - CSV bancário e revisão segura (4.7): mapeamento de colunas, débito/crédito, revisão por linha, correspondências sugeridas, vínculo manual, histórico de lotes e desfazer protegido
+- OFX e assistência local (4.9): extratos bancários OFX 1.x/2.x em BRL usam a mesma revisão; FITID identifica a origem. Regras explícitas sugerem categorias com motivo visível, e transferências confirmadas criam pares ou incorporam um movimento oposto existente, com desfazer protegido
 
 ## Estrutura
 
@@ -75,7 +76,7 @@ O FinTrack foi projetado para uso local. Backups podem ser exportados manualment
 
 ## Modelo financeiro
 
-Valores monetários persistidos são armazenados como inteiros em centavos. O schema atual é a versão 10 e novos fechamentos usam snapshots versão 4. Dados antigos passam por migração antes do uso; snapshots históricos anteriores são lidos por compatibilidade sem recálculo ou alteração, e registros inseguros são isolados na quarentena exibida em Cadastro → Auditoria. A importação bancária aceita CSV em BRL de até 10 MB; cada linha precisa de uma decisão e uma categoria antes de criar lançamentos. O desfazer de um lote é bloqueado quando seus lançamentos foram alterados, removidos, vinculados por outro lote ou pertencem a mês fechado.
+Valores monetários persistidos são armazenados como inteiros em centavos. O schema atual é a versão 11 e novos fechamentos usam snapshots versão 4. Dados antigos passam por migração antes do uso; snapshots históricos anteriores são lidos por compatibilidade sem recálculo ou alteração, e registros inseguros são isolados na quarentena exibida em Cadastro → Auditoria. A importação bancária aceita CSV e extratos OFX bancários em BRL de até 10 MB; outros conjuntos de mensagens OFX, como cartão e investimento, não entram nesta versão. Cada linha precisa de uma decisão; lançamentos operacionais exigem categoria. O desfazer de um lote é bloqueado quando seus lançamentos foram alterados, removidos, vinculados por outro lote ou pertencem a mês fechado. Regras de categoria criadas explicitamente permanecem disponíveis após desfazer o lote.
 
 O contrato financeiro distingue valores realizados (`status === Pago`) de pendentes (`status === Pendente`). Em orçamentos, `comprometido` é a soma de realizado e pendente, e `disponível` é o valor planejado menos o comprometido. Saldos de contas consideram apenas movimentos realizados; projeções acrescentam entradas pendentes e descontam saídas pendentes. Transferências, investimentos e pagamentos de cartão ou dívida são classificados por `tipoOperacao`, sem inferência por nome durante o uso normal da aplicação.
 

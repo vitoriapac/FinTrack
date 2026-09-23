@@ -43,6 +43,12 @@
       if(item.categoriaId&&!categories.has(item.categoriaId)) warnings.push(`categoria ausente no lançamento ${item.id}`);
       if(item.cartaoId&&!cards.has(item.cartaoId)) warnings.push(`cartão ausente no lançamento ${item.id}`);
     }
+    for(const batch of data.importBatches||[]){
+      if(!batch||!['csv','ofx'].includes(batch.format)||!['active','undone'].includes(batch.status)||!Array.isArray(batch.created)||!Array.isArray(batch.linked)||!Array.isArray(batch.ignored)||batch.modified&&!Array.isArray(batch.modified)||batch.operations&&!Array.isArray(batch.operations))errors.push(`lote de importação ${batch?.id||'sem id'} inválido`);
+    }
+    for(const rule of data.importRules||[]){
+      if(!rule||typeof rule.pattern!=='string'||rule.pattern.trim().length<3||!['Despesa','Receita'].includes(rule.type)||typeof rule.categoryId!=='string')errors.push(`regra de importação ${rule?.id||'sem id'} inválida`);
+    }
 
     for(const payment of data.pagamentosCartao||[]){
       if(!cards.has(payment.cartaoId)) warnings.push(`cartão ausente no pagamento ${payment.id}`);
@@ -116,6 +122,10 @@
     const next=window.FinTrackNormalize.normalizeData(clone(data),data);
     const validIds=(items)=>new Set(items.map(item=>item.id));
     for(const key of window.FinTrackSchema.requiredCollections) next[key]=(next[key]||[]).filter(item=>item&&typeof item==='object'&&item.id);
+    const invalidBatch=next.importBatches.filter(batch=>!['csv','ofx'].includes(batch.format)||!['active','undone'].includes(batch.status)||!Array.isArray(batch.created)||!Array.isArray(batch.linked)||!Array.isArray(batch.ignored)||batch.modified&&!Array.isArray(batch.modified)||batch.operations&&!Array.isArray(batch.operations));
+    const invalidRule=next.importRules.filter(rule=>typeof rule.pattern!=='string'||rule.pattern.trim().length<3||!['Despesa','Receita'].includes(rule.type)||typeof rule.categoryId!=='string');
+    next.importBatches=next.importBatches.filter(batch=>!invalidBatch.includes(batch));next.importRules=next.importRules.filter(rule=>!invalidRule.includes(rule));
+    next.quarentena.push(...invalidBatch.map(batch=>({id:`quarentena-import-batch-${batch.id}`,tipo:'lote_importacao_invalido',origemId:batch.id,motivo:'Metadados de lote inválidos',dados:batch})),...invalidRule.map(rule=>({id:`quarentena-import-rule-${rule.id}`,tipo:'regra_importacao_invalida',origemId:rule.id,motivo:'Metadados de regra inválidos',dados:rule})));
     const accounts=validIds(next.contas),categories=validIds(next.categorias),cards=validIds(next.cartoes),debts=validIds(next.dividas);
     const rejected=next.lancamentos.filter(item=>!datePattern.test(String(item.data||''))||!Number.isInteger(item.valor)||item.valor<=0||(item.contaId&&!accounts.has(item.contaId))||(item.categoriaId&&!categories.has(item.categoriaId))||(item.cartaoId&&!cards.has(item.cartaoId)));
     if(rejected.length){const ids=new Set(rejected.map(item=>item.id));next.lancamentos=next.lancamentos.filter(item=>!ids.has(item.id));next.quarentena.push(...rejected.map(item=>({id:`quarentena-${item.id}`,tipo:'lancamento_invalido',origemId:item.id,motivo:'Referência, data ou valor inválido',dados:item})));}
