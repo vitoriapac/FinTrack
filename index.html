@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="css/charts.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/clarity.css">
+  <link rel="stylesheet" href="css/statement.css">
 </head>
 <body>
 
@@ -27,13 +28,13 @@
     <button class="nav-mobile-toggle" id="nav-mobile-toggle" aria-expanded="false" aria-controls="nav">Menu</button>
     <nav id="nav" aria-label="Navegação principal">
       <button class="nav-item nav-primary" data-view="home" aria-label="Abrir visão geral"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Zm10 7h6V11h-6v9ZM4 20h6v-3H4v3Zm10-13h6V4h-6v3Z"/></svg>Visão geral</button>
-      <div class="nav-group"><button class="nav-group-toggle" aria-expanded="false"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Movimentações</button><div class="nav-submenu" hidden><button class="nav-item" data-view="lancamentos">Lançamentos</button><button class="nav-item" data-view="cartoes">Cartões</button><button class="nav-item" data-view="dividas">Dívidas</button></div></div>
+      <div class="nav-group"><button class="nav-group-toggle" aria-expanded="false"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Movimentações</button><div class="nav-submenu" hidden><button class="nav-item" data-view="lancamentos">Lançamentos</button><button class="nav-item" data-view="extrato">Extrato financeiro</button><button class="nav-item" data-view="cartoes">Cartões</button><button class="nav-item" data-view="dividas">Dívidas</button></div></div>
       <div class="nav-group"><button class="nav-group-toggle" aria-expanded="false"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M5 19V7m7 12V4m7 15v-8"/></svg>Planejar</button><div class="nav-submenu" hidden><button class="nav-item" data-view="planejamento">Planejamento</button><button class="nav-item" data-view="metas">Metas</button><button class="nav-item" data-view="agenda">Agenda</button></div></div>
       <div class="nav-group"><button class="nav-group-toggle" aria-expanded="false"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="m4 17 5-5 4 3 7-8M16 7h4v4"/></svg>Analisar</button><div class="nav-submenu" hidden><button class="nav-item" data-view="analises">Análises</button><button class="nav-item" data-view="patrimonio">Patrimônio</button><button class="nav-item" data-view="balanco">Balanço</button><button class="nav-item" data-view="historico">Histórico</button><button class="nav-item" data-view="projecao">Projeção</button><button class="nav-item" data-view="anual">Visão anual</button></div></div>
       <div class="nav-group"><button class="nav-group-toggle" aria-expanded="false"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><path d="M3 18 9 12l4 4 8-10M16 6h5v5"/></svg>Simular</button><div class="nav-submenu" hidden><button class="nav-item" data-view="simuladores">Cenários</button></div></div>
       <div class="nav-group"><button class="nav-group-toggle" aria-expanded="false"><svg class="nav-icon" aria-hidden="true" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>Mais</button><div class="nav-submenu" hidden><button class="nav-item" data-view="cadastro">Cadastro</button><button class="nav-item" data-view="auditoria">Auditoria</button><button class="nav-item" data-view="configuracoes">Configurações</button><button class="nav-item" data-view="instrucoes">Instruções</button></div></div>
     </nav>
-    <div class="sidebar-foot"><strong>FinTrack v4.2.0</strong><span id="sidebar-storage">Dados locais · Salvo</span></div>
+    <div class="sidebar-foot"><strong>FinTrack v4.4.0</strong><span id="sidebar-storage">Dados locais · Salvo</span></div>
   </aside>
   <main id="main" tabindex="-1"></main>
   <nav class="mobile-bottom-nav" aria-label="Navegação rápida"><button type="button" data-mobile-view="home" aria-label="Ir para Início">Início</button><button type="button" data-mobile-view="agenda" aria-label="Ir para Agenda">Agenda</button><button type="button" data-mobile-new aria-label="Adicionar lançamento">＋</button><button type="button" data-mobile-view="analises" aria-label="Ir para Análises">Análises</button><button type="button" data-mobile-more aria-label="Abrir mais opções" aria-expanded="false" aria-controls="nav">Mais</button></nav>
@@ -46,6 +47,7 @@
 <script src="js/core/validate.js"></script>
 <script src="js/core/state.js"></script>
 <script src="js/financial-core.js"></script>
+<script src="js/services/statement.js"></script>
 <script src="js/services/future.js"></script>
 <script src="js/services/analysis/core.js"></script>
 <script src="js/services/analysis/recurring.js"></script>
@@ -77,6 +79,7 @@
 <script src="js/ui/insight-routes.js"></script>
 <script src="js/ui/charts.js"></script>
 <script src="js/ui/components.js"></script>
+<script src="js/ui/financial-ledger.js"></script>
 <script src="js/ui/filters.js"></script>
 <script src="js/ui/screen-events.js"></script>
 <script src="js/ui/screen-handlers.js"></script>
@@ -90,6 +93,7 @@
 <script src="js/forms/entry.js"></script>
 <script src="js/views/home.js"></script>
 <script src="js/views/lancamentos.js"></script>
+<script src="js/views/extrato.js"></script>
 <script src="js/views/vencimentos.js"></script>
 <script src="js/views/agenda.js"></script>
 <script src="js/views/balanco.js"></script>

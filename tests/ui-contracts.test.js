@@ -9,11 +9,14 @@ const requiredScripts = [
   'js/services/calendar-analysis.js',
   'js/services/financial-memory.js',
   'js/services/scenarios.js',
+  'js/services/statement.js',
   'js/services/analysis/core.js',
   'js/services/analysis/index.js',
   'js/ui/screen-events.js',
+  'js/ui/financial-ledger.js',
   'js/forms/entry.js',
   'js/views/cadastro.js',
+  'js/views/extrato.js',
   'js/views/cartoes.js',
   'js/views/dividas.js',
   'js/views/auditoria.js',
@@ -23,6 +26,8 @@ const requiredScripts = [
 ];
 for (const script of requiredScripts) assert.ok(html.includes(`src="${script}"`), `script ausente: ${script}`);
 assert.ok(html.indexOf('js/financial-core.js') < html.indexOf('js/ui/screen-events.js'));
+assert.ok(html.indexOf('js/services/statement.js')<html.indexOf('js/views/extrato.js'));
+assert.ok(html.indexOf('js/ui/financial-ledger.js')<html.indexOf('js/views/lancamentos.js'));
 const analysisModules=['core','recurring','commitment','reserve','quality','anomaly','concentration','index'].map(name=>`js/services/analysis/${name}.js`);
 for(const module of analysisModules)assert.ok(html.includes(`src="${module}"`),`módulo de análise ausente: ${module}`);
 for(let index=1;index<analysisModules.length;index++)assert.ok(html.indexOf(analysisModules[index-1])<html.indexOf(analysisModules[index]),`ordem inválida dos módulos: ${analysisModules[index]}`);

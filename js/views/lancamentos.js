@@ -6,17 +6,11 @@
     return `<div class="transaction-mobile-list">${items.map(l=>`<article class="transaction-card"><div class="transaction-card-head"><div><span class="transaction-card-date">${formatDate(l.data)}</span><strong>${esc(l.descricao)}</strong></div><span class="${l.tipo==='Receita'?'money-in':'money-out'}">${l.tipo==='Receita'?'+':'-'} ${formatMoney(l.valor)}</span></div><div class="transaction-card-meta"><span>${esc(contaById(l.contaId)?.nome||'—')}</span><span>${esc(catById(l.categoriaId)?.nome||'—')}</span></div><div class="transaction-card-actions"><button class="badge ${l.status==='Pago'?'badge-paid':'badge-pending'}" data-action="toggle-status" data-id="${l.id}">${l.status}</button>${actionButtons(l)}</div></article>`).join('')}</div>`;
   }
   function renderTable(groups){
-    return `<table class="transaction-table"><thead><tr><th>Data</th><th>Descrição</th><th>Conta</th><th>Categoria</th><th class="num">Valor</th><th>Status</th><th></th></tr></thead><tbody>${Object.entries(groups).map(([data,group])=>`<tr><td colspan="7" class="group-title">${formatDate(data)}</td></tr>${group.map(l=>`<tr><td>${l.tipo}</td><td>${esc(l.descricao)}${l.fixa?' <span style="color:var(--muted);font-size:12px;">(fixa)</span>':''} ${serieLabel(l)}</td><td>${esc(contaById(l.contaId)?.nome||'—')}</td><td>${esc(catById(l.categoriaId)?.nome||'—')}</td><td class="num ${l.tipo==='Receita'?'money-in':'money-out'}">${l.tipo==='Receita'?'+':'-'} ${formatMoney(l.valor)}</td><td><span class="badge ${l.status==='Pago'?'badge-paid':'badge-pending'}" style="cursor:pointer;" data-action="toggle-status" data-id="${l.id}">${l.status}</span></td><td>${actionButtons(l)}</td></tr>`).join('')}`).join('')}</tbody></table>`;
+    const body=Object.entries(groups).map(([data,group])=>`<tr><th colspan="7" scope="rowgroup" class="group-title">${formatDate(data)}</th></tr>${group.map(l=>`<tr><td>${l.tipo}</td><td>${esc(l.descricao)}${l.fixa?' <span style="color:var(--muted);font-size:12px;">(fixa)</span>':''} ${serieLabel(l)}</td><td>${esc(contaById(l.contaId)?.nome||'—')}</td><td>${esc(catById(l.categoriaId)?.nome||'—')}</td><td class="num ${l.tipo==='Receita'?'money-in':'money-out'}">${l.tipo==='Receita'?'+':'-'} ${formatMoney(l.valor)}</td><td><span class="badge ${l.status==='Pago'?'badge-paid':'badge-pending'}" style="cursor:pointer;" data-action="toggle-status" data-id="${l.id}">${l.status}</span></td><td>${actionButtons(l)}</td></tr>`).join('')}`).join('');
+    return FinancialLedgerTable.renderMarkup({label:'Lançamentos do período',className:'transaction-table',head:'<tr><th scope="col">Data</th><th scope="col">Descrição</th><th scope="col">Conta</th><th scope="col">Categoria</th><th scope="col" class="num">Valor</th><th scope="col">Status</th><th scope="col"></th></tr>',body});
   }
   window.renderLancamentosView=function(){
-    let items=lancamentosDoMes(lancFiltro.mes,lancFiltro.ano);
-    if(lancFiltro.categoriaId&&lancFiltro.categoriaId!=='todas') items=items.filter(l=>l.categoriaId===lancFiltro.categoriaId);
-    if(lancFiltro.busca&&lancFiltro.busca.trim()){
-      const query=lancFiltro.busca.trim().toLowerCase();
-      items=items.filter(l=>l.descricao.toLowerCase().includes(query));
-    }
-    items=items.sort((a,b)=>b.data.localeCompare(a.data));
-    const total=items.reduce((sum,l)=>sum+(naturezaLancamento(l)==='receita'?Number(l.valor):naturezaLancamento(l)==='despesa'?-Number(l.valor):0),0);
+    const month=`${lancFiltro.ano}-${String(lancFiltro.mes).padStart(2,'0')}`,statement=FinancialStatementService.query(state,{from:`${month}-01`,to:`${month}-${String(new Date(lancFiltro.ano,lancFiltro.mes,0).getDate()).padStart(2,'0')}`,categoryId:lancFiltro.categoriaId,search:lancFiltro.busca,today:todayLocal()}),items=statement.rows.map(row=>row.entry),total=statement.totals.operatingResult;
     const displayed=lancMostrarTodos?items:items.slice(0,12),groups={};
     displayed.forEach(l=>(groups[l.data]||=[]).push(l));
     const content=items.length===0

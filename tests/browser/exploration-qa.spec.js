@@ -7,7 +7,7 @@ test('matriz 4.1 mantém telas legíveis sem rolagem horizontal global',async({p
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   for(const [width,height] of [[1440,900],[1280,800],[768,1024],[390,844]]){
     await page.setViewportSize({width,height});
-    for(const view of ['home','lancamentos','agenda','planejamento','analises','patrimonio','historico','projecao','simuladores']){
+    for(const view of ['home','lancamentos','extrato','agenda','planejamento','analises','patrimonio','historico','projecao','simuladores']){
       await page.evaluate(view=>{FinTrackState.replaceState(criarDadosDemo());setView(view);},view);
       await expect(page.locator('#main h1').first()).toBeVisible();
       expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),`${view} em ${width}px`).toBe(true);

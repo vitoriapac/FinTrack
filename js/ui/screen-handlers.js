@@ -4,6 +4,12 @@ function attachViewHandlers(){
   FinTrackScreenEvents.attach(main);
   FinTrackCharts.bindTooltips(main);
 
+  const applyStatementFilters=document.getElementById('btn-apply-statement-filters');
+  if(applyStatementFilters)applyStatementFilters.onclick=()=>{const next={from:document.getElementById('statement-from').value,to:document.getElementById('statement-to').value,accountId:document.getElementById('statement-account').value,categoryId:document.getElementById('statement-category').value,kind:document.getElementById('statement-kind').value,status:document.getElementById('statement-status').value,search:document.getElementById('statement-search').value},error=document.getElementById('statement-filter-error');try{FinancialStatementService.query(state,{...next,today:todayLocal()});setFinancialStatementFilters(next);render();}catch(exception){error.hidden=false;error.textContent=exception.message;}};
+  const resetStatementFilters=document.getElementById('btn-reset-statement-filters');if(resetStatementFilters){resetStatementFilters.onclick=()=>{setFinancialStatementFilters(null);render();};}
+  const exportStatement=document.getElementById('btn-export-statement-csv');if(exportStatement)exportStatement.onclick=()=>{const filters=getFinancialStatementFilters(),label=filters.from&&filters.to?`${filters.from}-${filters.to}`:todayLocal();baixarArquivo(`fintrack-extrato-${label}.csv`,`\uFEFF${FinancialStatementService.csv(state,{...filters,today:todayLocal()})}`,'text/csv;charset=utf-8');};
+  main.querySelectorAll('[data-statement-entry]').forEach(button=>button.onclick=()=>navigateToInsight({view:'lancamentos',entityId:button.dataset.statementEntry}));
+
   main.querySelectorAll('[data-action="go-lancamentos"]').forEach(b => b.onclick = () => setView('lancamentos'));
   main.querySelectorAll('[data-action="select-closing"]').forEach(button=>button.onclick=()=>{historicoMes=button.dataset.key;render();});
   main.querySelectorAll('[data-action="export-closing-pdf"]').forEach(button=>button.onclick=()=>{const key=button.dataset.key,previousKey=Object.keys(state.fechamentos||{}).filter(candidate=>candidate<key&&state.fechamentos[candidate]?.snapshot).sort().at(-1);FinTrackPdfReport.open(key,state.fechamentos[key],previousKey?state.fechamentos[previousKey]:null);});

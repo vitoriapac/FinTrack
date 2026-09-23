@@ -3,10 +3,11 @@ const fs=require('node:fs');
 
 const html=fs.readFileSync('index.html','utf8');
 const app=fs.readFileSync('js/app.js','utf8');
-const views=['home','lancamentos','vencimentos','balanco','historico','planejamento','metas','cartoes','dividas','auditoria','cadastro'];
+const views=['home','lancamentos','extrato','vencimentos','balanco','historico','planejamento','metas','cartoes','dividas','auditoria','cadastro'];
 const viewFiles={
   home:'js/views/home.js',
   lancamentos:'js/views/lancamentos.js',
+  extrato:'js/views/extrato.js',
   vencimentos:'js/views/vencimentos.js',
   balanco:'js/views/balanco.js',
   historico:'js/views/historico.js',
